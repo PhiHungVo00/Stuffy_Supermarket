@@ -36,9 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       const data = await authApi.login(email, password);
-      // backend returns { user: User } for login
-      setUser(data.user);
-      localStorage.setItem('userInfo', JSON.stringify(data.user));
+      // backend returns { _id, name, email, role } directly
+      const userData = (data as any).user || data;
+      setUser(userData);
+      localStorage.setItem('userInfo', JSON.stringify(userData));
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -48,8 +49,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string) => {
     try {
       const data = await authApi.register(name, email, password);
-      setUser(data.user);
-      localStorage.setItem('userInfo', JSON.stringify(data.user));
+      const userData = (data as any).user || data;
+      setUser(userData);
+      localStorage.setItem('userInfo', JSON.stringify(userData));
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };

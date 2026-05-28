@@ -14,8 +14,6 @@ import { incrementCart } from "store/signals";
 // Lazy-load the 3D viewer (2MB+) — only fetched when user clicks "View in 3D"
 const Viewer3D = React.lazy(() => import("viewer/Viewer"));
 
-const socket = io("https://stuffy-backend-api.onrender.com");
-
 export default function ProductList() {
   const { t } = useI18nStore();
   const navigate = useNavigate();
@@ -59,6 +57,8 @@ export default function ProductList() {
   }, [page, category, keyword]);
 
   useEffect(() => {
+    const socket = io("https://stuffy-backend-api.onrender.com");
+
     socket.on("PRICE_UPDATED", (updatedProduct) => {
       setProducts((current) => current.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
       setFlashingId(updatedProduct.id);
@@ -88,7 +88,7 @@ export default function ProductList() {
     const handleAIResult = (e) => setAiMatches(e.detail.matches);
     const handleProductSearch = (e) => {
       setKeyword(e.detail.keyword);
-      setPage(1); // Quay về trang 1 khi search
+      setPage(1);
     };
 
     window.addEventListener('AI_SEARCH_RESULT', handleAIResult);
@@ -96,8 +96,10 @@ export default function ProductList() {
     
     return () => {
       socket.off("PRICE_UPDATED");
+      socket.off("DYNAMIC_PRICE_UPDATE");
       socket.off("NEW_PRODUCT");
       socket.off("PRODUCT_DELETED");
+      socket.disconnect();
       window.removeEventListener('AI_SEARCH_RESULT', handleAIResult);
       window.removeEventListener('PRODUCT_SEARCH', handleProductSearch);
     };
