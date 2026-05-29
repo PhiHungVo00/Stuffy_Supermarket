@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useCartStore } from "store/store";
 import Button from "design_system/Button";
 import { io } from "socket.io-client";
 import FortuneWheel from "./FortuneWheel";
 import CheckoutModal from "./CheckoutModal";
 
-const socket = io("https://stuffy-backend-api.onrender.com");
-// Generate a random 4-char session PIN for the Scan & Go feature
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 const SESSION_CODE = Math.random().toString(36).substring(2, 6).toUpperCase();
 
 const Cart = () => {
@@ -43,7 +43,7 @@ const Cart = () => {
     };
 
     try {
-      const res = await fetch("https://stuffy-backend-api.onrender.com/api/orders", {
+      const res = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,22 +64,23 @@ const Cart = () => {
     }
   };
 
+  const socketRef = useRef(null);
+
   useEffect(() => {
-    // Step 1: Register this desktop session with the server
+    const socket = io(API_BASE);
+    socketRef.current = socket;
+
     socket.emit("JOIN_CART_SESSION", SESSION_CODE);
     
-    // Step 2: Listen for items pushed from the mobile scanner
     socket.on("DESKTOP_RECEIVE_ITEM", (product) => {
-      // Add scanned product to Zustand store
       addToCart(product);
-      
-      // Trigger flash animation on the card
       setMagicItem(product);
       setTimeout(() => setMagicItem(null), 2500);
     });
 
     return () => {
       socket.off("DESKTOP_RECEIVE_ITEM");
+      socket.disconnect();
     };
   }, []);
 

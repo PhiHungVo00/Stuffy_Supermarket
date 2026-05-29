@@ -76,6 +76,7 @@ export const productApi = {
             category
             rating
             numReviews
+            countInStock
           }
           page
           pages
@@ -119,5 +120,21 @@ export const orderApi = {
   }),
   getById: (id: string): Promise<any> => apiRequest(`/orders/${id}`),
   getMyOrders: (): Promise<any[]> => apiRequest('/orders/myorders'),
-  getAll: (): Promise<any[]> => apiRequest('/orders'),
+  getAll: (page = 1, status = ''): Promise<any> => apiRequest(`/orders?page=${page}${status ? `&status=${status}` : ''}`),
+  updateStatus: (id: string, status: string): Promise<any> => apiRequest(`/orders/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  }),
+};
+
+export const voucherApi = {
+  getAll: (): Promise<any[]> => apiRequest('/vouchers'),
+  claim: (code: string): Promise<any> => apiRequest('/vouchers/claim', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }),
+  apply: (code: string, orderTotal: number): Promise<any> => apiRequest('/vouchers/apply', {
+    method: 'POST',
+    body: JSON.stringify({ code, orderTotal }),
+  }),
 };

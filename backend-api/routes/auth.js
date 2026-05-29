@@ -1,7 +1,9 @@
 const express = require('express');
-const User = require('../models/User');
+const UserModule = require('../models/User');
+const User = UserModule.default || UserModule;
 const jwt = require('jsonwebtoken');
-const { protect } = require('../middleware/auth');
+const authModule = require('../middleware/auth');
+const protect = authModule.protect || authModule.default?.protect;
 
 const router = express.Router();
 
@@ -44,6 +46,7 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        token,
       });
     } else {
       res.status(400).json({ error: 'Invalid user data' });
@@ -79,6 +82,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        token,
       });
     } else {
       res.status(401).json({ error: 'Invalid email or password' });
@@ -96,11 +100,13 @@ router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
+      const token = generateToken(user._id);
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        token,
       });
     } else {
       res.status(404).json({ error: 'User not found' });
@@ -108,6 +114,59 @@ router.get('/me', protect, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error retrieving profile' });
+  }
+});
+
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.name = req.body.name || user.name;
+    if (req.body.email) user.email = req.body.email;
+
+    const updatedUser = await user.save();
+    const token = generateToken(updatedUser._id);
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      token,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error updating profile' });
+  }
+});
+
+// @desc    Change password
+// @route   PUT /api/auth/password
+// @access  Private
+router.put('/password', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error changing password' });
   }
 });
 

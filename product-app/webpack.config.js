@@ -59,6 +59,7 @@ module.exports = {
       exposes: {
         "./ProductList": "./src/ProductList",
         "./ProductDetail": "./src/ProductDetail",
+        "./WishlistPage": "./src/WishlistPage",
       },
 
       shared: {

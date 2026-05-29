@@ -1,22 +1,48 @@
 import React, { useState, useEffect } from "react";
 import Button from "design_system/Button";
 
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+
+const STATUS_STEPS = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+
+const STATUS_COLORS = {
+  Pending: '#f59e0b',
+  Processing: '#3b82f6',
+  Shipped: '#8b5cf6',
+  Delivered: '#10b981',
+  Canceled: '#ef4444'
+};
+
 export default function UserProfile() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("orders"); // 'orders' or 'settings'
+  const [activeTab, setActiveTab] = useState("orders");
+  const [expandedOrder, setExpandedOrder] = useState(null);
+  
+  // Settings state
+  const [editName, setEditName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [settingsMsg, setSettingsMsg] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
   
   const userInfoString = localStorage.getItem('userInfo');
   const user = userInfoString ? JSON.parse(userInfoString) : null;
+  const token = user?.token || '';
 
   useEffect(() => {
-    if (user && user.token) {
-      fetch("https://stuffy-backend-api.onrender.com/api/orders/myorders", {
-        headers: { "Authorization": `Bearer ${user.token}` }
+    if (user) setEditName(user.name);
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_BASE}/api/orders/myorders`, {
+        headers: { "Authorization": `Bearer ${token}` }
       })
       .then(res => res.json())
       .then(data => {
-        setOrders(data);
+        setOrders(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
@@ -37,12 +63,98 @@ export default function UserProfile() {
     );
   }
 
-  const getStatusColor = (status) => {
-    if (status === 'Delivered') return '#10b981';
-    if (status === 'Processing') return '#f59e0b';
-    if (status === 'Cancelled') return '#ef4444';
-    return '#6366f1';
+  const handleUpdateProfile = async () => {
+    setSettingsMsg('');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: editName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('userInfo', JSON.stringify(data));
+        setSettingsMsg('Profile updated successfully!');
+      } else {
+        setSettingsMsg(data.error || 'Failed to update profile');
+      }
+    } catch (e) {
+      setSettingsMsg('Network error: ' + e.message);
+    }
   };
+
+  const handleChangePassword = async () => {
+    setPasswordMsg('');
+    if (!currentPassword || !newPassword) {
+      setPasswordMsg('Please fill in both fields');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordMsg('Password changed successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+      } else {
+        setPasswordMsg(data.error || 'Failed to change password');
+      }
+    } catch (e) {
+      setPasswordMsg('Network error: ' + e.message);
+    }
+  };
+
+  const getStatusIndex = (status) => STATUS_STEPS.indexOf(status);
+
+  const renderTimeline = (order) => {
+    if (order.status === 'Canceled') {
+      return (
+        <div style={{ padding: '15px', background: '#fef2f2', borderRadius: '12px', textAlign: 'center', color: '#ef4444', fontWeight: '700' }}>
+          Order Canceled
+        </div>
+      );
+    }
+
+    const currentIdx = getStatusIndex(order.status);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0', padding: '20px 0' }}>
+        {STATUS_STEPS.map((step, idx) => {
+          const isActive = idx <= currentIdx;
+          const isCurrent = idx === currentIdx;
+          return (
+            <React.Fragment key={step}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 0 }}>
+                <div style={{
+                  width: isCurrent ? '36px' : '28px',
+                  height: isCurrent ? '36px' : '28px',
+                  borderRadius: '50%',
+                  background: isActive ? STATUS_COLORS[step] : '#e2e8f0',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'white', fontWeight: '800', fontSize: '0.75rem',
+                  transition: 'all 0.3s',
+                  boxShadow: isCurrent ? `0 0 0 4px ${STATUS_COLORS[step]}30` : 'none'
+                }}>
+                  {isActive ? (idx < currentIdx ? '✓' : (idx + 1)) : (idx + 1)}
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: isActive ? '700' : '500', color: isActive ? STATUS_COLORS[step] : '#94a3b8', marginTop: '6px', whiteSpace: 'nowrap' }}>
+                  {step}
+                </span>
+              </div>
+              {idx < STATUS_STEPS.length - 1 && (
+                <div style={{ flex: 1, height: '3px', background: idx < currentIdx ? STATUS_COLORS[STATUS_STEPS[idx + 1]] : '#e2e8f0', minWidth: '40px', marginBottom: '20px', transition: 'background 0.3s' }} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const inputStyle = { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-light)', boxSizing: 'border-box', outline: 'none' };
 
   return (
     <div style={{ display: 'flex', gap: '40px', minHeight: '600px' }}>
@@ -60,16 +172,16 @@ export default function UserProfile() {
         </div>
 
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <li>
-            <button onClick={() => setActiveTab('orders')} style={{ width: '100%', textAlign: 'left', padding: '12px 20px', borderRadius: '12px', background: activeTab === 'orders' ? 'var(--primary-color)' : 'transparent', color: activeTab === 'orders' ? 'white' : 'var(--text-main)', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              📦 Order History
-            </button>
-          </li>
-          <li>
-            <button onClick={() => setActiveTab('settings')} style={{ width: '100%', textAlign: 'left', padding: '12px 20px', borderRadius: '12px', background: activeTab === 'settings' ? 'var(--primary-color)' : 'transparent', color: activeTab === 'settings' ? 'white' : 'var(--text-main)', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              ⚙️ Account Settings
-            </button>
-          </li>
+          {[
+            { key: 'orders', icon: '📦', label: 'Order History' },
+            { key: 'settings', icon: '⚙️', label: 'Account Settings' },
+          ].map(tab => (
+            <li key={tab.key}>
+              <button onClick={() => setActiveTab(tab.key)} style={{ width: '100%', textAlign: 'left', padding: '12px 20px', borderRadius: '12px', background: activeTab === tab.key ? 'var(--primary-color)' : 'transparent', color: activeTab === tab.key ? 'white' : 'var(--text-main)', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {tab.icon} {tab.label}
+              </button>
+            </li>
+          ))}
         </ul>
       </aside>
 
@@ -94,22 +206,25 @@ export default function UserProfile() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-light)', paddingBottom: '20px', marginBottom: '20px' }}>
                       <div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '5px' }}>Order ID</div>
-                        <div style={{ fontWeight: 'mono', color: 'var(--text-main)', fontWeight: 'bold' }}>#{order._id?.substring(0, 8) || 'N/A'}</div>
+                        <div style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>#{order._id?.substring(0, 8) || 'N/A'}</div>
                         <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#64748b' }}>Placed on {new Date(order.createdAt).toLocaleDateString()}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: `${getStatusColor(order.status || 'Processing')}15`, color: getStatusColor(order.status || 'Processing'), padding: '6px 12px', borderRadius: '99px', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: getStatusColor(order.status || 'Processing') }}></span>
-                          {order.status || 'Processing'}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: `${STATUS_COLORS[order.status] || '#6366f1'}15`, color: STATUS_COLORS[order.status] || '#6366f1', padding: '6px 12px', borderRadius: '99px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_COLORS[order.status] || '#6366f1' }}></span>
+                          {order.status || 'Pending'}
                         </div>
                         <div style={{ marginTop: '10px', fontSize: '1.2rem', fontWeight: '800', color: 'var(--primary-color)' }}>
-                          ${order.totalPrice.toFixed(2)}
+                          ${order.totalPrice?.toFixed(2)}
                         </div>
                       </div>
                     </div>
 
+                    {/* Order Timeline */}
+                    {renderTimeline(order)}
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {order.orderItems.map((item, idx) => (
+                      {(expandedOrder === order._id ? order.orderItems : order.orderItems.slice(0, 2)).map((item, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                           <img src={item.image} alt={item.name} style={{ width: '60px', height: '60px', objectFit: 'contain', background: '#f1f5f9', borderRadius: '10px', padding: '5px' }} />
                           <div style={{ flex: 1 }}>
@@ -121,14 +236,21 @@ export default function UserProfile() {
                           </div>
                         </div>
                       ))}
+                      {order.orderItems.length > 2 && (
+                        <button
+                          onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary-color)', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem', textAlign: 'left', padding: '5px 0' }}
+                        >
+                          {expandedOrder === order._id ? 'Show less' : `+${order.orderItems.length - 2} more items`}
+                        </button>
+                      )}
                     </div>
 
-                    <div style={{ marginTop: '25px', display: 'flex', gap: '15px' }}>
-                      <Button style={{ flex: 1 }} onClick={() => alert('Feature coming soon: Track shipment')}>Track Package</Button>
-                      <button style={{ padding: '0 20px', border: '1px solid var(--border-light)', background: 'white', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', color: 'var(--text-main)', transition: 'all 0.2s' }} onMouseOver={e=>e.target.style.background='#f1f5f9'} onMouseOut={e=>e.target.style.background='white'}>
-                        Buy Again
-                      </button>
-                    </div>
+                    {order.shippingAddress && (
+                      <div style={{ marginTop: '15px', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        <strong>Ship to:</strong> {order.shippingAddress.address}, {order.shippingAddress.city}, {order.shippingAddress.postalCode}, {order.shippingAddress.country}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -139,25 +261,51 @@ export default function UserProfile() {
         {activeTab === 'settings' && (
           <div>
             <h2 style={{ fontSize: '2rem', margin: '0 0 30px 0', fontWeight: '800', color: 'var(--text-main)' }}>Account Settings</h2>
+            
+            {/* Profile Details */}
+            <div style={{ background: 'white', borderRadius: '24px', padding: '30px', border: '1px solid var(--border-light)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)', marginBottom: '25px' }}>
+              <h4 style={{ margin: '0 0 20px 0' }}>Profile Details</h4>
+              {settingsMsg && (
+                <div style={{ padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', background: settingsMsg.includes('success') ? '#f0fdf4' : '#fef2f2', color: settingsMsg.includes('success') ? '#16a34a' : '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
+                  {settingsMsg}
+                </div>
+              )}
+              <div style={{ display: 'grid', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Full Name</label>
+                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Email Address</label>
+                  <input type="text" value={user.email} disabled style={{ ...inputStyle, background: '#f8fafc', color: 'var(--text-muted)' }} />
+                </div>
+              </div>
+              <button onClick={handleUpdateProfile} style={{ marginTop: '20px', padding: '12px 30px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                Save Changes
+              </button>
+            </div>
+
+            {/* Change Password */}
             <div style={{ background: 'white', borderRadius: '24px', padding: '30px', border: '1px solid var(--border-light)', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
-               <h4 style={{ margin: '0 0 20px 0' }}>Profile Details</h4>
-               <p style={{ color: 'var(--text-muted)', marginBottom: '30px' }}>Your account information is handled securely.</p>
-               
-               <div style={{ display: 'grid', gap: '20px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Full Name</label>
-                    <input type="text" value={user.name} disabled style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-light)', background: '#f8fafc', boxSizing: 'border-box', color: 'var(--text-muted)' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Email Address</label>
-                    <input type="text" value={user.email} disabled style={{ width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-light)', background: '#f8fafc', boxSizing: 'border-box', color: 'var(--text-muted)' }} />
-                  </div>
-               </div>
-               
-               <h4 style={{ margin: '40px 0 20px 0' }}>Address Book</h4>
-               <div style={{ padding: '20px', border: '2px dashed var(--border-light)', borderRadius: '12px', textAlign: 'center', cursor: 'pointer' }}>
-                  + Add new shipping address
-               </div>
+              <h4 style={{ margin: '0 0 20px 0' }}>Change Password</h4>
+              {passwordMsg && (
+                <div style={{ padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', background: passwordMsg.includes('success') ? '#f0fdf4' : '#fef2f2', color: passwordMsg.includes('success') ? '#16a34a' : '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
+                  {passwordMsg}
+                </div>
+              )}
+              <div style={{ display: 'grid', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Current Password</label>
+                  <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} style={inputStyle} placeholder="Enter current password" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>New Password</label>
+                  <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} placeholder="Enter new password" />
+                </div>
+              </div>
+              <button onClick={handleChangePassword} style={{ marginTop: '20px', padding: '12px 30px', background: '#f97316', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                Change Password
+              </button>
             </div>
           </div>
         )}
