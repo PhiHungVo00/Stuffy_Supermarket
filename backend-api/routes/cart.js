@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const User = require('../models/User');
+const authModule = require('../middleware/auth');
+const protect = authModule.protect || authModule.default?.protect;
+const UserModule = require('../models/User');
+const User = UserModule.default || UserModule;
 
 // @desc    Get user cart
 // @route   GET /api/cart

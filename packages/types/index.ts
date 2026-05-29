@@ -7,6 +7,7 @@ export interface Product {
   category: string;
   rating?: number;
   numReviews?: number;
+  countInStock?: number;
   reviews?: Review[];
 }
 

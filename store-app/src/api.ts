@@ -63,6 +63,13 @@ export const productApi = {
   getAll: (keyword = '', page = 1, category = 'All'): Promise<{ products: Product[], pages: number, total: number }> => 
     apiRequest(`/products?keyword=${keyword}&pageNumber=${page}&category=${category}`),
   
+  getAllFiltered: (keyword = '', page = 1, category = 'All', sortBy = 'newest', minPrice = '', maxPrice = ''): Promise<{ products: Product[], pages: number, total: number, categories: string[] }> => {
+    let url = `/products?keyword=${keyword}&pageNumber=${page}&category=${category}&sortBy=${sortBy}`;
+    if (minPrice) url += `&minPrice=${minPrice}`;
+    if (maxPrice) url += `&maxPrice=${maxPrice}`;
+    return apiRequest(url);
+  },
+  
   getAllGraphQL: async (keyword = '', page = 1, category = 'All'): Promise<{ products: Product[], pages: number, total: number }> => {
     const query = `
       query GetProducts($keyword: String, $page: Int, $category: String) {
@@ -76,6 +83,7 @@ export const productApi = {
             category
             rating
             numReviews
+            countInStock
           }
           page
           pages
@@ -119,5 +127,21 @@ export const orderApi = {
   }),
   getById: (id: string): Promise<any> => apiRequest(`/orders/${id}`),
   getMyOrders: (): Promise<any[]> => apiRequest('/orders/myorders'),
-  getAll: (): Promise<any[]> => apiRequest('/orders'),
+  getAll: (page = 1, status = ''): Promise<any> => apiRequest(`/orders?page=${page}${status ? `&status=${status}` : ''}`),
+  updateStatus: (id: string, status: string): Promise<any> => apiRequest(`/orders/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  }),
+};
+
+export const voucherApi = {
+  getAll: (): Promise<any[]> => apiRequest('/vouchers'),
+  claim: (code: string): Promise<any> => apiRequest('/vouchers/claim', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }),
+  apply: (code: string, orderTotal: number): Promise<any> => apiRequest('/vouchers/apply', {
+    method: 'POST',
+    body: JSON.stringify({ code, orderTotal }),
+  }),
 };

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,7 +31,7 @@ export default function FloatingChat() {
 
     try {
       const tenantId = localStorage.getItem('tenantId') || 'default_store';
-      const response = await fetch("https://stuffy-backend-api.onrender.com/api/ai/copilot/chat", {
+      const response = await fetch(`${API_BASE}/api/ai/copilot/chat`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

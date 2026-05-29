@@ -28,6 +28,7 @@ const ProductSchema = new Schema<IProduct>({
   category: { type: String, required: true, default: "Uncategorized" },
   rating: { type: Number, required: true, default: 0 },
   numReviews: { type: Number, required: true, default: 0 },
+  countInStock: { type: Number, required: true, default: 50 },
   reviews: [reviewSchema],
   tenantId: { type: String, required: true, default: 'default_store' }
 }, { timestamps: true });
