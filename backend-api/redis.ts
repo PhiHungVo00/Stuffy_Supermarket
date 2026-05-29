@@ -1,20 +1,24 @@
 import Redis from 'ioredis';
 
+const REDIS_URL = process.env.REDIS_URL;
 const redisHost = process.env.REDIS_HOST || 'localhost';
 const redisPort = Number(process.env.REDIS_PORT) || 6379;
 
-const redis = new Redis({
-  host: redisHost,
-  port: redisPort,
-  // Retry strategy for enterprise robustness
-  retryStrategy: (times) => {
+const redisOptions: any = {
+  retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
-});
+  maxRetriesPerRequest: null,
+  enableOfflineQueue: true,
+};
 
-redis.on('connect', () => console.log(`[Redis] Connection to ${redisHost}:${redisPort} established.`));
-redis.on('error', (err) => console.error('[Redis] Connection Error:', err));
+const redis = REDIS_URL
+  ? new Redis(REDIS_URL, redisOptions)
+  : new Redis({ host: redisHost, port: redisPort, ...redisOptions });
+
+redis.on('connect', () => console.log(`[Redis] Connection established${REDIS_URL ? ' via REDIS_URL' : ` to ${redisHost}:${redisPort}`}.`));
+redis.on('error', (err) => console.error('[Redis] Connection Error:', err.message));
 
 export const cacheData = async (key: string, data: any, ttl: number = 3600) => {
   try {

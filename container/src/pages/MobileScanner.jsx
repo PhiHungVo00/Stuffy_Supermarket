@@ -14,7 +14,7 @@ export default function MobileScanner() {
     // Fetch product catalogue from API
     fetch("https://stuffy-backend-api.onrender.com/api/products")
       .then(res => res.json())
-      .then(data => setProducts(data));
+      .then(data => setProducts(data.products || (Array.isArray(data) ? data : [])));
       
     // Join the socket session channel
     socket.emit("JOIN_CART_SESSION", sessionCode);

@@ -119,6 +119,20 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
 
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+    ports:
+      - "3010:3010"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RABBIT_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
+      - MONGO_URI=mongodb://mongodb:27017/stuffy_db
+    depends_on:
+      - redis
+      - rabbitmq
+      - mongodb
+
   image-service:
     build: ./image-service
     ports:

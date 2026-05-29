@@ -410,6 +410,77 @@ app.post('/api/registry/switch-version', admin, async (req: Request, res: Respon
     res.json({ message: `Successfully switched ${name} to ${version}`, activeUrl: mfe.activeUrl });
   } catch (e: any) {
     Sentry.captureException(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/products/:id', protect, admin, async (req: any, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    product.name = req.body.name || product.name;
+    product.price = req.body.price || product.price;
+    product.description = req.body.description || product.description;
+    product.image = req.body.image || product.image;
+    product.category = req.body.category || product.category;
+
+    const updatedProduct = await product.save();
+    await clearCache('products:*');
+
+    io.emit('PRICE_UPDATED', updatedProduct);
+    res.json(updatedProduct);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/products/:id', protect, admin, async (req: any, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    await Product.deleteOne({ _id: req.params.id });
+    await clearCache('products:*');
+
+    io.emit('PRODUCT_DELETED', req.params.id);
+    res.json({ message: 'Product removed' });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/products/:id/reviews', protect, async (req: any, res: Response) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const alreadyReviewed = product.reviews?.find(
+      (r: any) => r.user.toString() === req.user._id.toString()
+    );
+    if (alreadyReviewed) {
+      return res.status(400).json({ error: 'Product already reviewed by this user' });
+    }
+
+    const review = {
+      name: req.user.name,
+      rating: Number(req.body.rating),
+      comment: req.body.comment,
+      user: req.user._id,
+    };
+
+    product.reviews = product.reviews || [];
+    product.reviews.push(review as any);
+    product.numReviews = product.reviews.length;
+    product.rating = product.reviews.reduce((acc: number, item: any) => item.rating + acc, 0) / product.reviews.length;
+
+    await product.save();
+    await clearCache(`product:${req.params.id}`);
+    await clearCache('products:*');
+
+    res.status(201).json({ message: 'Review added' });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
