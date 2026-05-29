@@ -8,20 +8,33 @@ export const typeDefs = gql`
     @link(url: "https://specs.apollo.dev/federation/v2.0",
           import: ["@key", "@shareable"])
 
+  type ProductVariant {
+    id: ID!
+    sku: String!
+    size: String
+    color: String
+    storage: String
+    price: Float!
+    countInStock: Int!
+    image: String
+  }
+
   type Product @key(fields: "id") {
     id: ID!
     name: String!
     price: Float!
     description: String
     image: String
+    images: [String]
     category: String
     rating: Float
     numReviews: Int
     countInStock: Int
+    variants: [ProductVariant]
   }
 
   type Query {
-    products(keyword: String, category: String, pageNumber: Int): ProductResponse!
+    products(keyword: String, category: String, pageNumber: Int, minPrice: Float, maxPrice: Float, minRating: Float, sortBy: String): ProductResponse!
     product(id: ID!): Product
   }
 
@@ -38,10 +51,10 @@ export const resolvers = {
     id: (parent: any) => parent._id || parent.id,
   },
   Query: {
-    products: async (_: any, { keyword, category, pageNumber = 1 }: any) => {
-      const cacheKey = `products:${keyword || 'all'}:${category || 'all'}:${pageNumber}`;
+    products: async (_: any, { keyword, category, pageNumber = 1, minPrice, maxPrice, minRating, sortBy }: any, context: any) => {
+      const tenantId = context?.tenantId || 'default_store';
+      const cacheKey = `products:${tenantId}:${keyword || 'all'}:${category || 'all'}:${pageNumber}:${minPrice || ''}:${maxPrice || ''}:${minRating || ''}:${sortBy || ''}`;
       
-      // Try to get from Cache
       const cached = await getCachedData<any>(cacheKey);
       if (cached) return cached;
 
@@ -56,8 +69,31 @@ export const resolvers = {
         query.category = category;
       }
 
+      if (minPrice !== undefined || maxPrice !== undefined) {
+        query.price = {};
+        if (minPrice !== undefined) query.price.$gte = minPrice;
+        if (maxPrice !== undefined) query.price.$lte = maxPrice;
+      }
+
+      if (minRating !== undefined) {
+        query.rating = { $gte: minRating };
+      }
+
+      query.tenantId = tenantId;
+
+      let sortOption: any = { createdAt: -1 };
+      switch (sortBy) {
+        case 'price_asc': sortOption = { price: 1 }; break;
+        case 'price_desc': sortOption = { price: -1 }; break;
+        case 'rating': sortOption = { rating: -1 }; break;
+        case 'newest': sortOption = { createdAt: -1 }; break;
+        case 'popular': sortOption = { numReviews: -1 }; break;
+      }
+
       const count = await Product.countDocuments(query);
       const products = await Product.find(query)
+        .populate('variants')
+        .sort(sortOption)
         .limit(pageSize)
         .skip(pageSize * (pageNumber - 1));
 
@@ -68,17 +104,17 @@ export const resolvers = {
         total: count
       };
 
-      // Store in Cache for 300 seconds (5 mins)
       await cacheData(cacheKey, response, 300);
 
       return response;
     },
-    product: async (_: any, { id }: any) => {
-      const cacheKey = `product:${id}`;
+    product: async (_: any, { id }: any, context: any) => {
+      const tenantId = context?.tenantId || 'default_store';
+      const cacheKey = `product:${tenantId}:${id}`;
       const cached = await getCachedData<any>(cacheKey);
       if (cached) return cached;
       
-      const product = await Product.findById(id);
+      const product = await Product.findOne({ _id: id, tenantId }).populate('variants');
       if (product) {
         await cacheData(cacheKey, product, 3600);
       }

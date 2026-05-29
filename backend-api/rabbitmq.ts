@@ -3,10 +3,16 @@ import amqp from 'amqplib';
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://stuffy:stuffyypass@localhost:5672';
 
 let channel: amqp.Channel;
+let connection: amqp.Connection;
 
-export const connectRabbitMQ = async () => {
+const MAX_RETRIES = 10;
+const INITIAL_DELAY_MS = 1000;
+
+const pendingSubscriptions: Array<{ queue: string; callback: (msg: any) => void }> = [];
+
+export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
     try {
-        const connection = await amqp.connect(RABBITMQ_URL);
+        connection = await amqp.connect(RABBITMQ_URL);
         channel = await connection.createChannel();
         
         // Define Queues
@@ -15,8 +21,37 @@ export const connectRabbitMQ = async () => {
         await channel.assertQueue('user_behavior_tracking', { durable: true });
         
         console.log(`[RabbitMQ] Connected and queues initialized.`);
-    } catch (err) {
-        console.error('[RabbitMQ] Connection Error:', err);
+
+        // Replay any subscriptions registered before the channel was ready
+        for (const sub of pendingSubscriptions) {
+            channel.consume(sub.queue, (msg) => {
+                if (msg !== null) {
+                    const content = JSON.parse(msg.content.toString());
+                    sub.callback(content);
+                    channel.ack(msg);
+                }
+            });
+        }
+
+        // Handle connection close for auto-reconnect
+        connection.on('close', (err) => {
+            console.error('[RabbitMQ] Connection closed unexpectedly. Reconnecting...');
+            channel = undefined as any;
+            setTimeout(() => connectRabbitMQ(0), INITIAL_DELAY_MS);
+        });
+
+        connection.on('error', (err) => {
+            console.error('[RabbitMQ] Connection error:', err.message);
+        });
+    } catch (err: any) {
+        if (retryCount >= MAX_RETRIES) {
+            console.error(`[RabbitMQ] Failed to connect after ${MAX_RETRIES} retries. Giving up.`);
+            return;
+        }
+        const delay = Math.min(INITIAL_DELAY_MS * Math.pow(2, retryCount), 30000);
+        console.error(`[RabbitMQ] Connection failed (attempt ${retryCount + 1}/${MAX_RETRIES}). Retrying in ${delay}ms...`, err.message);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return connectRabbitMQ(retryCount + 1);
     }
 };
 
@@ -31,8 +66,9 @@ export const pubsub = {
     },
     
     subscribe: (queue: string, callback: (msg: any) => void) => {
+        pendingSubscriptions.push({ queue, callback });
         if (!channel) {
-            console.error(`[RabbitMQ] Channel not initialized. Cannot subscribe to ${queue}`);
+            console.error(`[RabbitMQ] Channel not initialized yet. Subscription to ${queue} will replay on connect.`);
             return;
         }
         channel.consume(queue, (msg) => {

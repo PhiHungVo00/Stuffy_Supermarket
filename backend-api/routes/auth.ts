@@ -1,20 +1,19 @@
-const express = require('express');
-const UserModule = require('../models/User');
-const User = UserModule.default || UserModule;
-const jwt = require('jsonwebtoken');
-const authModule = require('../middleware/auth');
-const protect = authModule.protect || authModule.default?.protect;
+import express, { Request, Response } from 'express';
+import User from '../models/User';
+import jwt from 'jsonwebtoken';
+import { protect } from '../middleware/auth';
 
 const router = express.Router();
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret_stuffy', { expiresIn: '30d' });
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required. Server cannot start without it.');
+}
+
+const generateToken = (id: any) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
 };
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   try {
@@ -24,7 +23,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Assign 'admin' role if it's the first user, for convenience
     const count = await User.countDocuments();
     const role = count === 0 ? 'admin' : 'user';
 
@@ -33,12 +31,11 @@ router.post('/register', async (req, res) => {
     if (user) {
       const token = generateToken(user._id);
       
-      // Set cookie
       res.cookie('jwt', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
       res.status(201).json({
@@ -57,10 +54,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @desc    Auth user & get token
-// @route   POST /api/auth/login
-// @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
@@ -69,12 +63,11 @@ router.post('/login', async (req, res) => {
     if (user && (await user.matchPassword(password))) {
       const token = generateToken(user._id);
 
-      // Set cookie
       res.cookie('jwt', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
       res.json({
@@ -93,10 +86,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// @desc    Get user profile
-// @route   GET /api/auth/me
-// @access  Private
-router.get('/me', protect, async (req, res) => {
+router.get('/me', protect, async (req: any, res: Response) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
@@ -117,10 +107,7 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
-router.put('/profile', protect, async (req, res) => {
+router.put('/profile', protect, async (req: any, res: Response) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -143,10 +130,7 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
-// @desc    Change password
-// @route   PUT /api/auth/password
-// @access  Private
-router.put('/password', protect, async (req, res) => {
+router.put('/password', protect, async (req: any, res: Response) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -170,10 +154,7 @@ router.put('/password', protect, async (req, res) => {
   }
 });
 
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Public
-router.post('/logout', (req, res) => {
+router.post('/logout', (_req: Request, res: Response) => {
   res.cookie('jwt', '', {
     httpOnly: true,
     expires: new Date(0)
@@ -181,4 +162,4 @@ router.post('/logout', (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 });
 
-module.exports = router;
+export default router;

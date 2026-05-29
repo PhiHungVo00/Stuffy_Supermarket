@@ -3,6 +3,9 @@ import { io } from "socket.io-client";
 // @ts-ignore
 import { isDarkMode } from "store/signals";
 
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+
 export default function FlashSaleBanner() {
   const [timeLeft, setTimeLeft] = useState(0); 
   const [bannerBg, setBannerBg] = useState("");
@@ -11,13 +14,13 @@ export default function FlashSaleBanner() {
   useEffect(() => {
     // 🎨 Dynamic AI Visual Fetch
     const theme = isDarkMode.value ? 'dark' : 'bright';
-    fetch(`https://stuffy-backend-api.onrender.com/api/marketing/dynamic-visual?productName=High%20End%20Gaming%20PC&theme=${theme}`)
+    fetch(`${API_BASE}/api/marketing/dynamic-visual?productName=High%20End%20Gaming%20PC&theme=${theme}`)
       .then(res => res.json())
       .then(data => setBannerBg(data.imageUrl))
       .catch(err => console.error("Dynamic Banner Error:", err));
 
     // Kết nối tới backend socket
-    socketRef.current = io("https://stuffy-backend-api.onrender.com");
+    socketRef.current = io(API_BASE);
     
     socketRef.current.on('FLASH_SALE_TICK', (serverTime) => {
       setTimeLeft(serverTime);
