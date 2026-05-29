@@ -10,6 +10,7 @@ import { expressMiddleware } from '@apollo/server/express4';
 import * as Sentry from "@sentry/node";
 import { schema } from './schema';
 import Product from './models/Product';
+import './models/ProductVariant';
 import { clearCache } from './redis';
 import { connectRabbitMQ, pubsub } from './rabbitmq';
 import { aiContextSearch } from './ai-search';
