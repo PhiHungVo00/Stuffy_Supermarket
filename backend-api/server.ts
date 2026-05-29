@@ -454,14 +454,15 @@ app.put('/api/products/:id', protect, admin, async (req: any, res: Response) => 
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    product.name = req.body.name || product.name;
-    product.price = req.body.price || product.price;
-    product.description = req.body.description || product.description;
-    product.image = req.body.image || product.image;
-    product.category = req.body.category || product.category;
+    product.name = req.body.name ?? product.name;
+    product.price = req.body.price ?? product.price;
+    product.description = req.body.description ?? product.description;
+    product.image = req.body.image ?? product.image;
+    product.category = req.body.category ?? product.category;
 
     const updatedProduct = await product.save();
     await clearCache('products:*');
+    await clearCache(`product:${req.params.id}`);
 
     io.emit('PRICE_UPDATED', updatedProduct);
     res.json(updatedProduct);
@@ -477,6 +478,7 @@ app.delete('/api/products/:id', protect, admin, async (req: any, res: Response) 
 
     await Product.deleteOne({ _id: req.params.id });
     await clearCache('products:*');
+    await clearCache(`product:${req.params.id}`);
 
     io.emit('PRODUCT_DELETED', req.params.id);
     res.json({ message: 'Product removed' });
