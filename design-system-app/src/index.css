@@ -118,3 +118,33 @@ body {
     background-position: 600px;
   }
 }
+
+/* ===== RESPONSIVE / MOBILE LAYOUT ===== */
+@media (max-width: 768px) {
+  .ds-glass-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .ds-glass-card:hover {
+    transform: none;
+  }
+
+  .ds-button {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ds-glass-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .ds-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 0.88rem;
+  }
+}

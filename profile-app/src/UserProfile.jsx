@@ -26,6 +26,10 @@ export default function UserProfile() {
   const [newPassword, setNewPassword] = useState('');
   const [settingsMsg, setSettingsMsg] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
+  const [addresses, setAddresses] = useState([]);
+  const [addressForm, setAddressForm] = useState({ label: 'Home', address: '', city: '', postalCode: '', country: '', phone: '', isDefault: false });
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [addressMsg, setAddressMsg] = useState('');
   
   const userInfoString = localStorage.getItem('userInfo');
   const user = userInfoString ? JSON.parse(userInfoString) : null;
@@ -49,6 +53,13 @@ export default function UserProfile() {
         console.error("Failed to fetch orders:", err);
         setLoading(false);
       });
+
+      fetch(`${API_BASE}/api/addresses`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setAddresses(data); })
+      .catch(() => {});
     } else {
       setLoading(false);
     }
@@ -174,6 +185,7 @@ export default function UserProfile() {
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[
             { key: 'orders', icon: '📦', label: 'Order History' },
+            { key: 'addresses', icon: '📍', label: 'Address Book' },
             { key: 'settings', icon: '⚙️', label: 'Account Settings' },
           ].map(tab => (
             <li key={tab.key}>
@@ -251,6 +263,103 @@ export default function UserProfile() {
                         <strong>Ship to:</strong> {order.shippingAddress.address}, {order.shippingAddress.city}, {order.shippingAddress.postalCode}, {order.shippingAddress.country}
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'addresses' && (
+          <div>
+            <h2 style={{ fontSize: '2rem', margin: '0 0 30px 0', fontWeight: '800', color: 'var(--text-main)' }}>Address Book</h2>
+            
+            {addressMsg && (
+              <div style={{ padding: '10px 15px', borderRadius: '8px', marginBottom: '15px', background: addressMsg.includes('success') || addressMsg.includes('removed') ? '#f0fdf4' : '#fef2f2', color: addressMsg.includes('success') || addressMsg.includes('removed') ? '#16a34a' : '#ef4444', fontSize: '0.9rem', fontWeight: '600' }}>
+                {addressMsg}
+              </div>
+            )}
+
+            <div style={{ background: 'white', borderRadius: '16px', padding: '25px', border: '1px solid var(--border-light)', marginBottom: '25px' }}>
+              <h4 style={{ margin: '0 0 20px 0' }}>{editingAddressId ? 'Edit Address' : 'Add New Address'}</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Label</label>
+                  <select value={addressForm.label} onChange={e => setAddressForm({...addressForm, label: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                    <option>Home</option><option>Work</option><option>Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Phone</label>
+                  <input value={addressForm.phone} onChange={e => setAddressForm({...addressForm, phone: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }} placeholder="Phone number" />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Street Address</label>
+                  <input value={addressForm.address} onChange={e => setAddressForm({...addressForm, address: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }} placeholder="123 Main St" required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>City</label>
+                  <input value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }} placeholder="City" required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Postal Code</label>
+                  <input value={addressForm.postalCode} onChange={e => setAddressForm({...addressForm, postalCode: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }} placeholder="10001" required />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Country</label>
+                  <input value={addressForm.country} onChange={e => setAddressForm({...addressForm, country: e.target.value})} style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }} placeholder="Vietnam" required />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={addressForm.isDefault} onChange={e => setAddressForm({...addressForm, isDefault: e.target.checked})} />
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>Set as default</label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={async () => {
+                  setAddressMsg('');
+                  try {
+                    const url = editingAddressId ? `${API_BASE}/api/addresses/${editingAddressId}` : `${API_BASE}/api/addresses`;
+                    const method = editingAddressId ? 'PUT' : 'POST';
+                    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(addressForm) });
+                    if (res.ok) {
+                      setAddressMsg(editingAddressId ? 'Address updated successfully!' : 'Address added successfully!');
+                      setAddressForm({ label: 'Home', address: '', city: '', postalCode: '', country: '', phone: '', isDefault: false });
+                      setEditingAddressId(null);
+                      const addrs = await fetch(`${API_BASE}/api/addresses`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json());
+                      setAddresses(addrs);
+                    } else { const d = await res.json(); setAddressMsg(d.error || 'Failed'); }
+                  } catch (e) { setAddressMsg('Network error'); }
+                }} style={{ padding: '10px 24px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                  {editingAddressId ? 'Update' : 'Add Address'}
+                </button>
+                {editingAddressId && (
+                  <button onClick={() => { setEditingAddressId(null); setAddressForm({ label: 'Home', address: '', city: '', postalCode: '', country: '', phone: '', isDefault: false }); }} style={{ padding: '10px 24px', background: '#f1f5f9', color: 'var(--text-main)', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
+                )}
+              </div>
+            </div>
+
+            {addresses.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', background: '#f8fafc', borderRadius: '12px', border: '2px dashed var(--border-light)' }}>
+                <p style={{ color: 'var(--text-muted)' }}>No saved addresses yet</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '15px' }}>
+                {addresses.map(addr => (
+                  <div key={addr._id} style={{ background: 'white', borderRadius: '12px', padding: '20px', border: addr.isDefault ? '2px solid var(--primary-color)' : '1px solid var(--border-light)', position: 'relative' }}>
+                    {addr.isDefault && <span style={{ position: 'absolute', top: '10px', right: '10px', background: '#eef2ff', color: 'var(--primary-color)', fontSize: '0.7rem', fontWeight: '800', padding: '3px 8px', borderRadius: '99px' }}>DEFAULT</span>}
+                    <div style={{ fontWeight: '700', marginBottom: '6px' }}>{addr.label}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                      {addr.address}, {addr.city}, {addr.postalCode}, {addr.country}
+                      {addr.phone && <><br/>Phone: {addr.phone}</>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                      <button onClick={() => { setEditingAddressId(addr._id); setAddressForm({ label: addr.label, address: addr.address, city: addr.city, postalCode: addr.postalCode, country: addr.country, phone: addr.phone || '', isDefault: addr.isDefault }); }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--border-light)', background: 'white', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>Edit</button>
+                      <button onClick={async () => {
+                        await fetch(`${API_BASE}/api/addresses/${addr._id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                        setAddresses(addresses.filter(a => a._id !== addr._id));
+                        setAddressMsg('Address removed');
+                      }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>Delete</button>
+                    </div>
                   </div>
                 ))}
               </div>

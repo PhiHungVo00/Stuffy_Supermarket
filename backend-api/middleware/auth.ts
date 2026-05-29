@@ -33,7 +33,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
   try {
     // 2. Token Verification (Enterprise Mode)
     // Note: In production, instead of a secret, we should verify against Keycloak's JWKS URI
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_stuffy');
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
     
     // 3. User Resolution
     // If it's a social/SSO login, the ID might be a UUID from Keycloak/OIDC

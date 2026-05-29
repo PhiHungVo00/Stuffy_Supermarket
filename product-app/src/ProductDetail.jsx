@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCartStore, useWishlistStore } from "store/store";
+import { productApi } from "store/api";
 import Button from "design_system/Button";
+
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 // Lazy-load the 3D viewer (2MB+) — only fetched when user clicks "View in 3D"
 const Viewer3D = React.lazy(() => import("viewer/Viewer"));
@@ -25,6 +29,8 @@ export default function ProductDetail() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
   const colors = [
     { name: 'Indigo', value: '#6366f1' },
@@ -39,14 +45,14 @@ export default function ProductDetail() {
     window.scrollTo(0, 0);
     setLoading(true);
     // Fetch product details
-    fetch(`https://stuffy-backend-api.onrender.com/api/products/${id}`)
+    fetch(`${API_BASE}/api/products/${id}`)
       .then(res => res.json())
       .then(async (data) => {
         if (!data.error) {
           setProduct(data);
           
           // 1. Fetch similar products by Category (Static logic)
-          fetch(`https://stuffy-backend-api.onrender.com/api/products?category=${data.category}&pageNumber=1`)
+          fetch(`${API_BASE}/api/products?category=${data.category}&pageNumber=1`)
             .then(res => res.json())
             .then(simData => {
               if (simData.products) {
@@ -62,7 +68,7 @@ export default function ProductDetail() {
              const recomData = await recomRes.json();
              if (recomData.suggested && recomData.suggested.length > 0) {
                 const detailPromises = recomData.suggested.slice(0, 4).map(s => 
-                   fetch(`https://stuffy-backend-api.onrender.com/api/products/${s.id}`).then(r => r.json())
+                   fetch(`${API_BASE}/api/products/${s.id}`).then(r => r.json())
                 );
                 const results = await Promise.all(detailPromises);
                 setRecommendedProducts(results.filter(r => !r.error));
@@ -88,7 +94,7 @@ export default function ProductDetail() {
     const { token } = JSON.parse(userInfoString);
 
     try {
-      const res = await fetch(`https://stuffy-backend-api.onrender.com/api/products/${id}/reviews`, {
+      const res = await fetch(`${API_BASE}/api/products/${id}/reviews`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,9 +145,20 @@ export default function ProductDetail() {
       {/* Tầng 1: Chi tiết Sản phẩm & Hành động Mua */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px', marginBottom: '60px', background: 'white', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.03)' }}>
         
-        {/* Hình ảnh */}
-        <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-light)' }}>
-          <img src={product.image} alt={product.name} style={{ width: '100%', maxWidth: '400px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+        {/* Image Gallery */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-light)' }}>
+            <img src={(product.images && product.images.length > 0 ? product.images[selectedImage] : product.image)} alt={product.name} style={{ width: '100%', maxWidth: '400px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+          </div>
+          {product.images && product.images.length > 1 && (
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '5px 0' }}>
+              {product.images.map((img, idx) => (
+                <button key={idx} onClick={() => setSelectedImage(idx)} style={{ flex: '0 0 70px', width: '70px', height: '70px', borderRadius: '12px', border: selectedImage === idx ? '2px solid var(--primary-color)' : '1px solid var(--border-light)', background: '#f8fafc', cursor: 'pointer', padding: '5px', overflow: 'hidden' }}>
+                  <img src={img} alt={`${product.name} ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Thông tin */}
@@ -193,8 +210,38 @@ export default function ProductDetail() {
             </button>
           </div>
 
+          {product.variants && product.variants.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Variant</h4>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {product.variants.map((v, idx) => (
+                  <button key={v.sku || idx} onClick={() => setSelectedVariant(v)}
+                    style={{ padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem',
+                      border: selectedVariant?.sku === v.sku ? '2px solid var(--primary-color)' : '1.5px solid var(--border-light)',
+                      background: selectedVariant?.sku === v.sku ? 'rgba(99,102,241,0.08)' : 'white',
+                      color: selectedVariant?.sku === v.sku ? 'var(--primary-color)' : 'var(--text-main)',
+                    }}>
+                    {[v.attributes?.color, v.attributes?.size, v.attributes?.storage].filter(Boolean).join(' / ') || v.sku}
+                    {v.countInStock === 0 && ' (Out of Stock)'}
+                  </button>
+                ))}
+              </div>
+              {selectedVariant && (
+                <p style={{ marginTop: '8px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  Price: <strong style={{ color: 'var(--primary-color)' }}>${selectedVariant.price}</strong> — Stock: {selectedVariant.countInStock}
+                </p>
+              )}
+            </div>
+          )}
+
+          {product.countInStock === 0 && (
+            <div style={{ padding: '12px 20px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', fontWeight: '700', marginBottom: '15px' }}>
+              Out of Stock
+            </div>
+          )}
+
           <div style={{ marginTop: 'auto', display: 'flex', gap: '15px' }}>
-            <Button onClick={() => {
+            <Button disabled={product.countInStock === 0} onClick={() => {
               addToCart(product);
               window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { detail: { message: `Added ${product.name} to cart!` } }));
             }} style={{ flex: 1, padding: '18px', fontSize: '1.1rem', borderRadius: '12px' }}>

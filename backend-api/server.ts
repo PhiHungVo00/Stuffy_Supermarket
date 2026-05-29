@@ -22,13 +22,11 @@ import { getResilientImage } from './services/ResilienceService';
 import { Web3LoyaltyService } from './services/Web3LoyaltyService';
 import MfeModule from './models/MfeModule';
 import Voucher from './models/Voucher';
-// @ts-ignore
 import authRoutes from './routes/auth';
-// @ts-ignore
 import cartRoutes from './routes/cart';
-// @ts-ignore
 import orderRoutes from './routes/orders';
-// @ts-ignore
+import addressRoutes from './routes/addresses';
+import categoryRoutes from './routes/categories';
 import { protect, admin } from './middleware/auth';
 import { Product as SharedProduct } from '@stuffy/types';
 
@@ -40,7 +38,11 @@ const apolloServer = new ApolloServer({
 
 async function startApollo() {
   await apolloServer.start();
-  app.use('/graphql', cors<cors.CorsRequest>(), express.json(), expressMiddleware(apolloServer) as any);
+  app.use('/graphql', cors<cors.CorsRequest>(), express.json(), expressMiddleware(apolloServer, {
+    context: async ({ req }) => ({
+      tenantId: (req.headers['x-tenant-id'] as string) || 'default_store',
+    }),
+  }) as any);
 }
 
 startApollo().catch(err => console.error('Apollo Start Error:', err));
@@ -62,7 +64,37 @@ Sentry.init({
   tracesSampleRate: 1.0,
 });
 
-app.use(cors({ origin: true, credentials: true }));
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+  'http://localhost:3006',
+  'https://stuffy-container.onrender.com',
+  'https://stuffy-store-app.onrender.com',
+  'https://stuffy-header-app.onrender.com',
+  'https://stuffy-product-app.onrender.com',
+  'https://stuffy-cart-app.onrender.com',
+  'https://stuffy-admin-app.onrender.com',
+  'https://stuffy-profile-app.onrender.com',
+  'https://stuffy-marketing-app.onrender.com',
+  'https://stuffy-support-app.onrender.com',
+  'https://stuffy-3d-viewer-app.onrender.com',
+  'https://stuffy-design-system-app.onrender.com',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -70,6 +102,8 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/addresses', addressRoutes);
+app.use('/api/categories', categoryRoutes);
 
 app.post('/api/cart/calculate', async (req: Request, res: Response) => {
   try {
@@ -113,7 +147,7 @@ app.post('/api/payments/pay', async (req: Request, res: Response) => {
 });
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS, credentials: true } });
 
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`);
@@ -140,12 +174,8 @@ setInterval(() => {
 // Dynamic Pricing Engine: Random Flash Sales every 10 seconds
 setInterval(async () => {
   try {
-    const products = await Product.find({});
-    if (products.length === 0) return;
-    
-    // Pick random product
-    const randomIndex = Math.floor(Math.random() * products.length);
-    const targetProduct = products[randomIndex];
+    const [targetProduct] = await Product.aggregate([{ $sample: { size: 1 } }]);
+    if (!targetProduct) return;
     
     // Calculate flash price (20-50% discount)
     const discount = 0.5 + Math.random() * 0.3; // 50% to 80% of original
@@ -251,27 +281,6 @@ mongoose.connect(mongoURI)
       console.log('[Seed] Vouchers initialized.');
     }
 
-    const mfeCount = await MfeModule.countDocuments();
-    if (mfeCount === 0) {
-      await MfeModule.insertMany([
-        { 
-          name: 'store', 
-          activeUrl: 'https://stuffy-store-app.onrender.com/remoteEntry.js',
-          versions: [{ version: '1.0.0', url: 'https://stuffy-store-app.onrender.com/remoteEntry.js' }]
-        },
-        { 
-          name: 'header', 
-          activeUrl: 'https://stuffy-header-app.onrender.com/remoteEntry.js',
-          versions: [{ version: '1.0.0', url: 'https://stuffy-header-app.onrender.com/remoteEntry.js' }]
-        },
-        { 
-          name: 'product', 
-          activeUrl: 'https://stuffy-product-app.onrender.com/remoteEntry.js',
-          versions: [{ version: '1.0.0', url: 'https://stuffy-product-app.onrender.com/remoteEntry.js' }]
-        }
-      ]);
-      console.log('[Seed] MFE Registry initialized.');
-    }
   });
 
 app.get('/api/products', async (req: Request, res: Response) => {
@@ -308,6 +317,7 @@ app.get('/api/products', async (req: Request, res: Response) => {
 
     const count = await Product.countDocuments(query);
     const products = await Product.find(query)
+      .populate('variants')
       .sort(sortOption)
       .limit(pageSize)
       .skip(pageSize * (page - 1));
@@ -328,7 +338,7 @@ app.get('/api/products', async (req: Request, res: Response) => {
 
 app.get('/api/products/:id', async (req: Request, res: Response) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate('variants');
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     // Track user behavior for Recommendations (Collaborative Filtering)

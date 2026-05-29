@@ -145,3 +145,33 @@ export const voucherApi = {
     body: JSON.stringify({ code, orderTotal }),
   }),
 };
+
+export const addressApi = {
+  getAll: (): Promise<any[]> => apiRequest('/addresses'),
+  create: (address: any): Promise<any> => apiRequest('/addresses', {
+    method: 'POST',
+    body: JSON.stringify(address),
+  }),
+  update: (id: string, address: any): Promise<any> => apiRequest(`/addresses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(address),
+  }),
+  delete: (id: string): Promise<void> => apiRequest(`/addresses/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+export const categoryApi = {
+  getAll: (): Promise<any> => apiRequest('/categories'),
+  create: (category: any): Promise<any> => apiRequest('/categories', {
+    method: 'POST',
+    body: JSON.stringify(category),
+  }),
+  update: (id: string, category: any): Promise<any> => apiRequest(`/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(category),
+  }),
+  delete: (id: string): Promise<void> => apiRequest(`/categories/${id}`, {
+    method: 'DELETE',
+  }),
+};
