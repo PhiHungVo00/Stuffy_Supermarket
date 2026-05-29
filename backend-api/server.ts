@@ -194,9 +194,13 @@ setInterval(async () => {
     const [targetProduct] = await Product.aggregate([{ $sample: { size: 1 } }]);
     if (!targetProduct) return;
     
-    // Calculate flash price (20-50% discount)
+    // Look up existing active flash sale to preserve true original price
+    const existingActiveSale = await FlashSale.findOne({ product: targetProduct._id, isActive: true });
+    const trueOriginalPrice = existingActiveSale ? existingActiveSale.originalPrice : targetProduct.price;
+
+    // Calculate flash price (20-50% discount) based on true original price
     const discount = 0.5 + Math.random() * 0.3; // 50% to 80% of original
-    const newPrice = Math.round(targetProduct.price * discount);
+    const newPrice = Math.round(trueOriginalPrice * discount);
     
     const now = new Date();
     const endAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
@@ -207,10 +211,10 @@ setInterval(async () => {
       { isActive: false }
     );
 
-    // Create FlashSale record
+    // Create FlashSale record with true original price
     await FlashSale.create({
       product: targetProduct._id,
-      originalPrice: targetProduct.price,
+      originalPrice: trueOriginalPrice,
       flashPrice: newPrice,
       startAt: now,
       endAt,
@@ -221,13 +225,13 @@ setInterval(async () => {
     // Persist flash price to product
     await Product.findByIdAndUpdate(targetProduct._id, { price: newPrice });
 
-    console.log(`[Dynamic Pricing] Flash sale on ${targetProduct.name}: ${targetProduct.price} -> ${newPrice}`);
+    console.log(`[Dynamic Pricing] Flash sale on ${targetProduct.name}: ${trueOriginalPrice} -> ${newPrice}`);
     
     // Broadcast to specific tenant room (Isolation)
     io.to(targetProduct.tenantId).emit('DYNAMIC_PRICE_UPDATE', {
       productId: targetProduct._id,
       newPrice,
-      originalPrice: targetProduct.price,
+      originalPrice: trueOriginalPrice,
       message: `🔥 FLASH SALE: ${targetProduct.name} is now $${newPrice}!`
     });
   } catch (err) {

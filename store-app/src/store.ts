@@ -13,9 +13,9 @@ interface CartState {
   cartItems: CartItem[];
   loadCartFromServer: () => Promise<void>;
   addToCart: (product: Product, variant?: VariantInfo) => void;
-  removeFromCart: (id: string) => void;
-  increaseQuantity: (id: string) => void;
-  decreaseQuantity: (id: string) => void;
+  removeFromCart: (id: string, variantId?: string) => void;
+  increaseQuantity: (id: string, variantId?: string) => void;
+  decreaseQuantity: (id: string, variantId?: string) => void;
   clearCart: () => void;
 }
 
@@ -71,20 +71,32 @@ export const useCartStore = create<CartState>((set, get) => ({
     return { cartItems: newItems };
   }),
 
-  removeFromCart: (id: string) => set((state) => {
-    const newItems = state.cartItems.filter(i => i.id !== id);
+  removeFromCart: (id: string, variantId?: string) => set((state) => {
+    const targetKey = variantId ? `${id}_${variantId}` : id;
+    const newItems = state.cartItems.filter(i => {
+      const itemKey = i.variantId ? `${i.id}_${i.variantId}` : i.id;
+      return itemKey !== targetKey;
+    });
     syncToServer(newItems);
     return { cartItems: newItems };
   }),
 
-  increaseQuantity: (id: string) => set((state) => {
-    const newItems = state.cartItems.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i) as CartItem[];
+  increaseQuantity: (id: string, variantId?: string) => set((state) => {
+    const targetKey = variantId ? `${id}_${variantId}` : id;
+    const newItems = state.cartItems.map(i => {
+      const itemKey = i.variantId ? `${i.id}_${i.variantId}` : i.id;
+      return itemKey === targetKey ? { ...i, quantity: i.quantity + 1 } : i;
+    }) as CartItem[];
     syncToServer(newItems);
     return { cartItems: newItems };
   }),
 
-  decreaseQuantity: (id: string) => set((state) => {
-    const newItems = state.cartItems.map(i => i.id === id && i.quantity > 1 ? { ...i, quantity: i.quantity - 1 } : i) as CartItem[];
+  decreaseQuantity: (id: string, variantId?: string) => set((state) => {
+    const targetKey = variantId ? `${id}_${variantId}` : id;
+    const newItems = state.cartItems.map(i => {
+      const itemKey = i.variantId ? `${i.id}_${i.variantId}` : i.id;
+      return itemKey === targetKey && i.quantity > 1 ? { ...i, quantity: i.quantity - 1 } : i;
+    }) as CartItem[];
     syncToServer(newItems);
     return { cartItems: newItems };
   }),

@@ -145,14 +145,19 @@ const Cart = () => {
           {/* Cột Trái: Danh sách Hàng */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {cartItems.map((item) => (
-              <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 25px", background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}>
+              <div key={item.variantId ? `${item.id}_${item.variantId}` : item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 25px", background: 'white', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
                   <div style={{ width: '90px', height: '90px', background: '#f8fafc', borderRadius: '14px', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px' }}>
                     <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} />
                   </div>
                   <div>
                     <h4 style={{ margin: "0 0 5px 0", fontSize: "1.3rem", fontWeight: '700', color: 'var(--text-main)' }}>{item.name}</h4>
-                    <p style={{ margin: 0, color: "var(--text-muted)", fontWeight: "500", fontSize: '0.9rem' }}>SKU: #{item.id?.substring(0,8) || 'N/A'}</p>
+                    <p style={{ margin: 0, color: "var(--text-muted)", fontWeight: "500", fontSize: '0.9rem' }}>SKU: #{item.variantSku || item.id?.substring(0,8) || 'N/A'}</p>
+                    {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 && (
+                      <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                        {Object.entries(item.variantAttributes).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -161,13 +166,13 @@ const Cart = () => {
                   
                   {/* Bộ phím Tăng Giảm Số Lượng UI cực Pro */}
                   <div style={{ display: "flex", alignItems: "center", gap: "15px", background: "#f1f5f9", padding: "6px", borderRadius: "99px", border: "1px solid var(--border-light)" }}>
-                    <button onClick={() => decreaseQuantity(item.id)} style={{ background: "white", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "1.2rem", width: '32px', height: '32px', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>−</button>
+                    <button onClick={() => decreaseQuantity(item.id, item.variantId)} style={{ background: "white", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "1.2rem", width: '32px', height: '32px', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>−</button>
                     <span style={{ fontWeight: "800", width: "24px", textAlign: "center", color: "var(--text-main)" }}>{item.quantity}</span>
-                    <button onClick={() => increaseQuantity(item.id)} style={{ background: "white", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "1.2rem", width: '32px', height: '32px', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>+</button>
+                    <button onClick={() => increaseQuantity(item.id, item.variantId)} style={{ background: "white", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "1.2rem", width: '32px', height: '32px', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>+</button>
                   </div>
                   
                   {/* Nút Xóa Hàng Tinh Tế */}
-                  <button onClick={() => removeFromCart(item.id)} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: '1.8rem', padding: '5px', transition: 'color 0.2s' }} onMouseOver={e => e.target.style.color = '#ef4444'} onMouseOut={e => e.target.style.color = '#94a3b8'}>
+                  <button onClick={() => removeFromCart(item.id, item.variantId)} style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: '1.8rem', padding: '5px', transition: 'color 0.2s' }} onMouseOver={e => e.target.style.color = '#ef4444'} onMouseOut={e => e.target.style.color = '#94a3b8'}>
                     ×
                   </button>
                 </div>

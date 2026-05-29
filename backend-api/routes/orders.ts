@@ -39,13 +39,6 @@ router.post('/', protect, async (req: any, res: Response) => {
 
     const createdOrder = await order.save();
 
-    if (voucherCode) {
-      await Voucher.findOneAndUpdate(
-        { code: voucherCode.toUpperCase(), isActive: true },
-        { $inc: { usedCount: 1 } }
-      );
-    }
-
     for (const item of orderItems) {
       if (item.product) {
         const qty = item.qty || 1;
@@ -58,6 +51,13 @@ router.post('/', protect, async (req: any, res: Response) => {
           return res.status(400).json({ error: `Stock depleted for product ${item.product} during order. Order rolled back.` });
         }
       }
+    }
+
+    if (voucherCode) {
+      await Voucher.findOneAndUpdate(
+        { code: voucherCode.toUpperCase(), isActive: true },
+        { $inc: { usedCount: 1 } }
+      );
     }
 
     res.status(201).json(createdOrder);
