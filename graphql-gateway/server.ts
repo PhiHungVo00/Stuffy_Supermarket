@@ -85,9 +85,43 @@ const server = new ApolloServer({
   ],
 });
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+  'http://localhost:3006',
+  'https://stuffy-container.onrender.com',
+  'https://stuffy-store-app.onrender.com',
+  'https://stuffy-header-app.onrender.com',
+  'https://stuffy-product-app.onrender.com',
+  'https://stuffy-cart-app.onrender.com',
+  'https://stuffy-admin-app.onrender.com',
+  'https://stuffy-profile-app.onrender.com',
+  'https://stuffy-marketing-app.onrender.com',
+  'https://stuffy-support-app.onrender.com',
+  'https://stuffy-3d-viewer-app.onrender.com',
+  'https://stuffy-design-system-app.onrender.com',
+];
+
 async function startServer() {
   await server.start();
-  app.use(cors<cors.CorsRequest>(), express.json(), limiter);
+  app.use(
+    cors<cors.CorsRequest>({
+      origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      credentials: true,
+    }),
+    express.json(),
+    limiter
+  );
   app.use('/graphql', expressMiddleware(server) as any);
   
   const PORT = process.env.PORT || 4000;

@@ -14,6 +14,50 @@ import { incrementCart } from "store/signals";
 // Lazy-load the 3D viewer (2MB+) — only fetched when user clicks "View in 3D"
 const Viewer3D = React.lazy(() => import("viewer/Viewer"));
 
+function CategoryTreeNode({ node, depth, activeCategory, onSelect }) {
+  const [expanded, setExpanded] = useState(depth === 0);
+  const hasChildren = node.children && node.children.length > 0;
+  const isActive = activeCategory === node.name;
+
+  return (
+    <li style={{ listStyle: 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {hasChildren && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}
+          >
+            {expanded ? '▼' : '▶'}
+          </button>
+        )}
+        <button
+          onClick={() => onSelect(node.name)}
+          style={{
+            flex: 1, textAlign: 'left', padding: '10px 14px', borderRadius: '10px',
+            paddingLeft: `${14 + depth * 16}px`,
+            background: isActive ? 'linear-gradient(135deg, var(--primary-color), #8b5cf6)' : 'white',
+            color: isActive ? 'white' : 'var(--text-muted)',
+            border: isActive ? 'none' : '1px solid var(--border-light)',
+            fontWeight: isActive ? '700' : '500',
+            cursor: 'pointer', transition: 'all 0.2s',
+            boxShadow: isActive ? '0 10px 20px rgba(99,102,241,0.25)' : 'none',
+            fontSize: depth > 0 ? '0.9rem' : '1rem',
+          }}
+        >
+          {node.name}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0 0 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {node.children.map((child) => (
+            <CategoryTreeNode key={child._id} node={child} depth={depth + 1} activeCategory={activeCategory} onSelect={onSelect} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export default function ProductList() {
   const { t } = useI18nStore();
   const navigate = useNavigate();
@@ -35,6 +79,7 @@ export default function ProductList() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [serverCategories, setServerCategories] = useState([]);
+  const [categoryTree, setCategoryTree] = useState([]);
 
   const defaultCategories = ["All", "Laptops", "Phones", "Audio", "Gaming", "Video", "Accessories"];
   const categories = serverCategories.length > 0 ? ["All", ...serverCategories] : defaultCategories;
@@ -66,6 +111,21 @@ export default function ProductList() {
   useEffect(() => {
     fetchProducts();
   }, [page, category, keyword, sortBy, minPrice, maxPrice]);
+
+  useEffect(() => {
+    const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+    const apiBase = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+    fetch(`${apiBase}/api/categories`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.tree && data.tree.length > 0) {
+          setCategoryTree(data.tree);
+          const flatNames = data.categories ? data.categories.map(c => c.name) : [];
+          if (flatNames.length > 0) setServerCategories(flatNames);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
@@ -137,24 +197,45 @@ export default function ProductList() {
       <aside style={{ width: '250px', flexShrink: 0, position: 'sticky', top: '40px' }}>
         <h3 style={{ fontSize: '1.2rem', fontWeight: '800', margin: '0 0 20px 0', color: 'var(--text-main)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{t('category')}</h3>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {categories.map((cat) => (
-            <li key={cat}>
-              <button 
-                onClick={() => { setCategory(cat); setPage(1); }}
-                style={{
-                  width: '100%', textAlign: 'left', padding: '12px 16px', borderRadius: '10px',
-                  background: category === cat ? 'linear-gradient(135deg, var(--primary-color), #8b5cf6)' : 'white',
-                  color: category === cat ? 'white' : 'var(--text-muted)',
-                  border: category === cat ? 'none' : '1px solid var(--border-light)',
-                  fontWeight: category === cat ? '700' : '500',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  boxShadow: category === cat ? '0 10px 20px rgba(99,102,241,0.25)' : 'none'
-                }}
-              >
-                {cat}
-              </button>
-            </li>
-          ))}
+          <li key="All">
+            <button
+              onClick={() => { setCategory('All'); setPage(1); }}
+              style={{
+                width: '100%', textAlign: 'left', padding: '12px 16px', borderRadius: '10px',
+                background: category === 'All' ? 'linear-gradient(135deg, var(--primary-color), #8b5cf6)' : 'white',
+                color: category === 'All' ? 'white' : 'var(--text-muted)',
+                border: category === 'All' ? 'none' : '1px solid var(--border-light)',
+                fontWeight: category === 'All' ? '700' : '500',
+                cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: category === 'All' ? '0 10px 20px rgba(99,102,241,0.25)' : 'none'
+              }}
+            >
+              All
+            </button>
+          </li>
+          {categoryTree.length > 0
+            ? categoryTree.map((node) => (
+                <CategoryTreeNode key={node._id} node={node} depth={0} activeCategory={category} onSelect={(name) => { setCategory(name); setPage(1); }} />
+              ))
+            : categories.filter(c => c !== 'All').map((cat) => (
+                <li key={cat}>
+                  <button
+                    onClick={() => { setCategory(cat); setPage(1); }}
+                    style={{
+                      width: '100%', textAlign: 'left', padding: '12px 16px', borderRadius: '10px',
+                      background: category === cat ? 'linear-gradient(135deg, var(--primary-color), #8b5cf6)' : 'white',
+                      color: category === cat ? 'white' : 'var(--text-muted)',
+                      border: category === cat ? 'none' : '1px solid var(--border-light)',
+                      fontWeight: category === cat ? '700' : '500',
+                      cursor: 'pointer', transition: 'all 0.2s',
+                      boxShadow: category === cat ? '0 10px 20px rgba(99,102,241,0.25)' : 'none'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                </li>
+              ))
+          }
         </ul>
       </aside>
 

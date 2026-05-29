@@ -2,10 +2,17 @@ import { create } from "zustand";
 import { cartApi } from "./api";
 import { Product, CartItem } from "@stuffy/types";
 
+interface VariantInfo {
+  variantId?: string;
+  variantSku?: string;
+  variantPrice?: number;
+  variantAttributes?: Record<string, string>;
+}
+
 interface CartState {
   cartItems: CartItem[];
   loadCartFromServer: () => Promise<void>;
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, variant?: VariantInfo) => void;
   removeFromCart: (id: string) => void;
   increaseQuantity: (id: string) => void;
   decreaseQuantity: (id: string) => void;
@@ -32,13 +39,33 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addToCart: (product: Product) => set((state) => {
-    const existing = state.cartItems.find(i => i.id === product.id);
+  addToCart: (product: Product, variant?: VariantInfo) => set((state) => {
+    const cartKey = variant?.variantId ? `${product.id}_${variant.variantId}` : product.id;
+    const existing = state.cartItems.find(i => {
+      const itemKey = i.variantId ? `${i.id}_${i.variantId}` : i.id;
+      return itemKey === cartKey;
+    });
     let newItems: CartItem[];
     if (existing) {
-      newItems = state.cartItems.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      newItems = state.cartItems.map(i => {
+        const itemKey = i.variantId ? `${i.id}_${i.variantId}` : i.id;
+        return itemKey === cartKey ? { ...i, quantity: i.quantity + 1 } : i;
+      });
     } else {
-      newItems = [...state.cartItems, { ...product, quantity: 1 }];
+      const cartItem: CartItem = {
+        ...product,
+        quantity: 1,
+        ...(variant && {
+          variantId: variant.variantId,
+          variantSku: variant.variantSku,
+          variantPrice: variant.variantPrice,
+          variantAttributes: variant.variantAttributes,
+        }),
+      };
+      if (variant?.variantPrice !== undefined) {
+        cartItem.price = variant.variantPrice;
+      }
+      newItems = [...state.cartItems, cartItem];
     }
     syncToServer(newItems);
     return { cartItems: newItems };

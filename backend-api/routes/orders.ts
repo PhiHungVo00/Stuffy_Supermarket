@@ -2,11 +2,12 @@ import express, { Response } from 'express';
 import { protect, admin } from '../middleware/auth';
 import Order from '../models/Order';
 import Product from '../models/Product';
+import Voucher from '../models/Voucher';
 
 const router = express.Router();
 
 router.post('/', protect, async (req: any, res: Response) => {
-  const { orderItems, shippingAddress, itemsPrice, taxPrice, totalPrice, paymentMethod } = req.body;
+  const { orderItems, shippingAddress, itemsPrice, taxPrice, totalPrice, paymentMethod, voucherCode } = req.body;
 
   if (!orderItems || orderItems.length === 0) {
     res.status(400).json({ error: 'No order items' });
@@ -37,6 +38,13 @@ router.post('/', protect, async (req: any, res: Response) => {
     });
 
     const createdOrder = await order.save();
+
+    if (voucherCode) {
+      await Voucher.findOneAndUpdate(
+        { code: voucherCode.toUpperCase(), isActive: true },
+        { $inc: { usedCount: 1 } }
+      );
+    }
 
     for (const item of orderItems) {
       if (item.product) {

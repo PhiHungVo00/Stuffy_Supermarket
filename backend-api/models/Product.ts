@@ -15,7 +15,7 @@ const reviewSchema = new Schema<IReview>({
   user: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
 }, { timestamps: true });
 
-export interface IProduct extends Document, Omit<SharedProduct, 'id'> {
+export interface IProduct extends Document, Omit<SharedProduct, 'id' | 'variants'> {
   _id: mongoose.Types.ObjectId;
   tenantId: string;
   images: string[];

@@ -23,6 +23,7 @@ import { getResilientImage } from './services/ResilienceService';
 import { Web3LoyaltyService } from './services/Web3LoyaltyService';
 import MfeModule from './models/MfeModule';
 import Voucher from './models/Voucher';
+import FlashSale from './models/FlashSale';
 import authRoutes from './routes/auth';
 import cartRoutes from './routes/cart';
 import orderRoutes from './routes/orders';
@@ -172,6 +173,21 @@ setInterval(() => {
   io.emit('FLASH_SALE_TICK', flashSaleTimeLeft);
 }, 1000);
 
+// Expire stale flash sales every 30 seconds
+setInterval(async () => {
+  try {
+    const expired = await FlashSale.find({ isActive: true, endAt: { $lte: new Date() } });
+    for (const sale of expired) {
+      await Product.findByIdAndUpdate(sale.product, { price: sale.originalPrice });
+      sale.isActive = false;
+      await sale.save();
+      console.log(`[Dynamic Pricing] Flash sale expired, restored price for product ${sale.product}`);
+    }
+  } catch (err) {
+    console.error('[Dynamic Pricing] Expiry check error:', err);
+  }
+}, 30000);
+
 // Dynamic Pricing Engine: Random Flash Sales every 10 seconds
 setInterval(async () => {
   try {
@@ -182,6 +198,29 @@ setInterval(async () => {
     const discount = 0.5 + Math.random() * 0.3; // 50% to 80% of original
     const newPrice = Math.round(targetProduct.price * discount);
     
+    const now = new Date();
+    const endAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
+
+    // Deactivate any existing active flash sale for this product
+    await FlashSale.updateMany(
+      { product: targetProduct._id, isActive: true },
+      { isActive: false }
+    );
+
+    // Create FlashSale record
+    await FlashSale.create({
+      product: targetProduct._id,
+      originalPrice: targetProduct.price,
+      flashPrice: newPrice,
+      startAt: now,
+      endAt,
+      isActive: true,
+      tenantId: targetProduct.tenantId || 'default_store',
+    });
+
+    // Persist flash price to product
+    await Product.findByIdAndUpdate(targetProduct._id, { price: newPrice });
+
     console.log(`[Dynamic Pricing] Flash sale on ${targetProduct.name}: ${targetProduct.price} -> ${newPrice}`);
     
     // Broadcast to specific tenant room (Isolation)
@@ -471,6 +510,28 @@ app.put('/api/products/:id', protect, admin, async (req: any, res: Response) => 
     product.image = req.body.image ?? product.image;
     product.category = req.body.category ?? product.category;
 
+    if (req.body.images) {
+      product.images = req.body.images;
+    }
+
+    if (req.body.variants && Array.isArray(req.body.variants)) {
+      const ProductVariant = mongoose.model('ProductVariant');
+      await ProductVariant.deleteMany({ product: product._id });
+      const variantIds: mongoose.Types.ObjectId[] = [];
+      for (const v of req.body.variants) {
+        const variant = await ProductVariant.create({
+          product: product._id,
+          sku: v.sku,
+          price: v.price ?? product.price,
+          countInStock: v.countInStock ?? 0,
+          attributes: v.attributes || {},
+          image: v.image,
+        });
+        variantIds.push(variant._id as mongoose.Types.ObjectId);
+      }
+      product.variants = variantIds;
+    }
+
     const updatedProduct = await product.save();
     await clearCache('products:*');
     await clearCache(`product:${req.params.id}`);
@@ -534,12 +595,32 @@ app.post('/api/products/:id/reviews', protect, async (req: any, res: Response) =
 
 app.post('/api/products', protect, admin, async (req: any, res: Response) => {
   try {
+    const { variants: variantData, ...productData } = req.body;
     const newProduct = new Product({
-        ...req.body,
-        tenantId: req.tenantId
+        ...productData,
+        tenantId: req.tenantId || (req.headers['x-tenant-id'] as string) || 'default_store',
     });
     await newProduct.save();
-    await clearCache('products:*'); // Invalidate listed products
+
+    if (variantData && Array.isArray(variantData) && variantData.length > 0) {
+      const ProductVariant = mongoose.model('ProductVariant');
+      const variantIds: mongoose.Types.ObjectId[] = [];
+      for (const v of variantData) {
+        const variant = await ProductVariant.create({
+          product: newProduct._id,
+          sku: v.sku,
+          price: v.price ?? newProduct.price,
+          countInStock: v.countInStock ?? 0,
+          attributes: v.attributes || {},
+          image: v.image,
+        });
+        variantIds.push(variant._id as mongoose.Types.ObjectId);
+      }
+      newProduct.variants = variantIds;
+      await newProduct.save();
+    }
+
+    await clearCache('products:*');
     
     // Async heavy tasks via Message Broker
     pubsub.publish('INVENTORY_SYNC', newProduct);

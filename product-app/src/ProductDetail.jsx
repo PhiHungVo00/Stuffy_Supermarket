@@ -243,9 +243,18 @@ export default function ProductDetail() {
           )}
 
           <div style={{ marginTop: 'auto', display: 'flex', gap: '15px' }}>
-            <Button disabled={product.countInStock === 0} onClick={() => {
-              addToCart(product);
-              window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { detail: { message: `Added ${product.name} to cart!` } }));
+            <Button disabled={product.countInStock === 0 || (selectedVariant && selectedVariant.countInStock === 0)} onClick={() => {
+              const variantInfo = selectedVariant ? {
+                variantId: selectedVariant._id || selectedVariant.sku,
+                variantSku: selectedVariant.sku,
+                variantPrice: selectedVariant.price,
+                variantAttributes: selectedVariant.attributes,
+              } : undefined;
+              addToCart(product, variantInfo);
+              const label = selectedVariant
+                ? `Added ${product.name} (${selectedVariant.sku}) to cart!`
+                : `Added ${product.name} to cart!`;
+              window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { detail: { message: label } }));
             }} style={{ flex: 1, padding: '18px', fontSize: '1.1rem', borderRadius: '12px' }}>
               Add to Cart
             </Button>
@@ -274,7 +283,7 @@ export default function ProductDetail() {
           <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Rating (1-5)</label>
-              <select value={rating} onChange={e => setRating(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', outline: 'none' }}>
+              <select value={rating} onChange={e => setRating(Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', outline: 'none' }}>
                 <option value="5">5 - Excellent</option>
                 <option value="4">4 - Very Good</option>
                 <option value="3">3 - Average</option>
