@@ -15,6 +15,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [similarProducts, setSimilarProducts] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
   
   // Customization State
   const [selectedColor, setSelectedColor] = useState("#6366f1");
@@ -55,7 +56,9 @@ export default function ProductDetail() {
 
           // 2. 🚀 Fetch RECOMMENDATIONS from REAL-TIME Microservice (Collaborative Filtering)
           try {
-             const recomRes = await fetch(`http://localhost:3010/api/recommendations/${id}`);
+             const isProduction = window.location.hostname.includes('onrender.com');
+             const recomBaseUrl = isProduction ? 'https://stuffy-recom.onrender.com' : 'http://localhost:3010';
+             const recomRes = await fetch(`${recomBaseUrl}/api/recommendations/${id}`);
              const recomData = await recomRes.json();
              if (recomData.suggested && recomData.suggested.length > 0) {
                 const detailPromises = recomData.suggested.slice(0, 4).map(s => 

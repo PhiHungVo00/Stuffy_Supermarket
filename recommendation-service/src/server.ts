@@ -123,8 +123,8 @@ app.get('/api/recommendations/:id', async (req, res) => {
     });
 });
 
-const PORT = 3010;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3010;
+app.listen(Number(PORT), () => {
     console.log(`[Recom] 🚀 Recommendation Microservice is LIVE on port ${PORT}`);
     startConsumer();
 });
