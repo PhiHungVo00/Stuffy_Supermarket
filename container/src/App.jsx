@@ -21,6 +21,7 @@ const UserProfile = React.lazy(() => import("profile/UserProfile"));
 const FlashSaleBanner = React.lazy(() => import("marketing/FlashSaleBanner"));
 const VoucherWallet = React.lazy(() => import("marketing/VoucherWallet"));
 const FloatingChat = React.lazy(() => import("support/FloatingChat"));
+const WishlistPage = React.lazy(() => import("product/WishlistPage"));
 
 const ProtectedModule = ({ children, moduleName }) => (
   <ErrorBoundary>
@@ -55,6 +56,11 @@ const Navbar = () => {
           onMouseEnter={() => prefetchRemote('cart', REMOTE_MAP.cart)}
           style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
           Cart
+        </NavLink>
+        <NavLink 
+          to="/wishlist" 
+          style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? '#ec4899' : 'var(--text-muted)', borderBottom: isActive ? '3px solid #ec4899' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
+          Wishlist
         </NavLink>
         {user?.role === 'admin' && (
           <NavLink 
@@ -133,6 +139,7 @@ export default function App() {
             } />
             <Route path="/product/:id" element={<ProtectedModule moduleName="Product Detail"><ProductDetail /></ProtectedModule>} />
             <Route path="/cart" element={<ProtectedModule moduleName="Cart"><Cart /></ProtectedModule>} />
+            <Route path="/wishlist" element={<ProtectedModule moduleName="Wishlist"><WishlistPage /></ProtectedModule>} />
             <Route path="/profile" element={<ProtectedModule moduleName="Profile"><UserProfile /></ProtectedModule>} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminRoute><ProtectedModule moduleName="Admin"><Admin /></ProtectedModule></AdminRoute>} />

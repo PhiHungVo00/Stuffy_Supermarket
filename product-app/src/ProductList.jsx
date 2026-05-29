@@ -31,17 +31,28 @@ export default function ProductList() {
   const [pages, setPages] = useState(1);
   const [category, setCategory] = useState("All");
   const [keyword, setKeyword] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [serverCategories, setServerCategories] = useState([]);
 
-  const categories = ["All", "Laptops", "Phones", "Audio", "Gaming", "Video", "Accessories"];
+  const defaultCategories = ["All", "Laptops", "Phones", "Audio", "Gaming", "Video", "Accessories"];
+  const categories = serverCategories.length > 0 ? ["All", ...serverCategories] : defaultCategories;
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // This now calls the Federated GraphQL Gateway instead of direct REST
-      const data = await productApi.getAllGraphQL(keyword, page, category);
+      const hasFilters = sortBy !== 'newest' || minPrice || maxPrice;
+      let data;
+      if (hasFilters) {
+        data = await productApi.getAllFiltered(keyword, page, category, sortBy, minPrice, maxPrice);
+      } else {
+        data = await productApi.getAllGraphQL(keyword, page, category);
+      }
       if (data && data.products) {
         setProducts(data.products);
         setPages(data.pages);
+        if (data.categories) setServerCategories(data.categories);
       } else {
         setProducts(Array.isArray(data) ? data : []);
       }
@@ -54,7 +65,7 @@ export default function ProductList() {
 
   useEffect(() => {
     fetchProducts();
-  }, [page, category, keyword]);
+  }, [page, category, keyword, sortBy, minPrice, maxPrice]);
 
   useEffect(() => {
     const socket = io("https://stuffy-backend-api.onrender.com");
@@ -147,7 +158,7 @@ export default function ProductList() {
 
       {/* CỘT PHẢI: LƯỚI SẢN PHẨM & PHÂN TRANG */}
       <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
              {category === 'All' ? 'All Products' : category}
            </h3>
@@ -155,6 +166,31 @@ export default function ProductList() {
               <span style={{ width: '8px', height: '8px', background: '#16a34a', borderRadius: '50%', animation: 'blink 1s infinite alternate' }}></span>
               Live Sync
            </span>
+        </div>
+
+        {/* Sort & Price Filter Bar */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap' }}>
+          <select
+            value={sortBy}
+            onChange={e => { setSortBy(e.target.value); setPage(1); }}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-light)', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', background: 'white' }}
+          >
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="rating">Top Rated</option>
+            <option value="popular">Most Popular</option>
+          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input type="number" placeholder="Min $" value={minPrice} onChange={e => setMinPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
+            <span style={{ color: 'var(--text-muted)' }}>-</span>
+            <input type="number" placeholder="Max $" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
+          </div>
+          {(minPrice || maxPrice) && (
+            <button onClick={() => { setMinPrice(''); setMaxPrice(''); setPage(1); }} style={{ padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>
+              Clear Price
+            </button>
+          )}
         </div>
 
         {/* Banner kết quả AI */}
@@ -198,6 +234,12 @@ export default function ProductList() {
                     opacity: isDimmed ? 0.35 : 1, transition: 'all 0.4s', position: 'relative',
                   }}>
                     {isAiMatch && ( <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1 }}>AI Pick</div> )}
+                    {p.countInStock !== undefined && p.countInStock <= 0 && (
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '8px 20px', borderRadius: '8px', fontWeight: '800', fontSize: '0.9rem', zIndex: 3 }}>Out of Stock</div>
+                    )}
+                    {p.countInStock > 0 && p.countInStock <= 5 && (
+                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: '#fef2f2', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1, border: '1px solid #fecaca' }}>Only {p.countInStock} left!</div>
+                    )}
                     
                     <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)', color: 'var(--text-main)', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', border: '1px solid var(--border-light)', zIndex: 1, textTransform: 'uppercase' }}>
                       {p.category}

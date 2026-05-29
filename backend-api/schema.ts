@@ -17,6 +17,7 @@ export const typeDefs = gql`
     category: String
     rating: Float
     numReviews: Int
+    countInStock: Int
   }
 
   type Query {

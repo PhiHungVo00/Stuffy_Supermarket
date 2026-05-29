@@ -21,6 +21,7 @@ import { ImageGenService } from './services/ImageGenService';
 import { getResilientImage } from './services/ResilienceService';
 import { Web3LoyaltyService } from './services/Web3LoyaltyService';
 import MfeModule from './models/MfeModule';
+import Voucher from './models/Voucher';
 // @ts-ignore
 import authRoutes from './routes/auth';
 // @ts-ignore
@@ -238,6 +239,18 @@ mongoose.connect(mongoURI)
       console.log('[Seed] Advanced Discount Rules configured.');
     }
 
+    const voucherCount = await Voucher.countDocuments();
+    if (voucherCount === 0) {
+      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await Voucher.insertMany([
+        { code: 'FREESHIP', type: 'shipping', discountType: 'fixed', discountValue: 0, description: 'Free shipping on orders over $50', minOrderValue: 50, usageLimit: 500, expiresAt: thirtyDaysFromNow, tenantId: 'default_store' },
+        { code: 'TECH10', type: 'discount', discountType: 'percentage', discountValue: 10, description: '10% off on all tech products', maxDiscount: 100, usageLimit: 200, expiresAt: thirtyDaysFromNow, tenantId: 'default_store' },
+        { code: 'WELCOME15', type: 'discount', discountType: 'fixed', discountValue: 15, description: '$15 off your first purchase', usageLimit: 1000, expiresAt: thirtyDaysFromNow, tenantId: 'default_store' },
+        { code: 'FLASH30', type: 'discount', discountType: 'percentage', discountValue: 30, description: '30% off flash sale - max $50 discount', maxDiscount: 50, minOrderValue: 100, usageLimit: 50, expiresAt: thirtyDaysFromNow, tenantId: 'default_store' }
+      ]);
+      console.log('[Seed] Vouchers initialized.');
+    }
+
     const mfeCount = await MfeModule.countDocuments();
     if (mfeCount === 0) {
       await MfeModule.insertMany([
@@ -264,7 +277,7 @@ mongoose.connect(mongoURI)
 app.get('/api/products', async (req: Request, res: Response) => {
   try {
     const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
-    const pageSize = 8;
+    const pageSize = Number(req.query.pageSize) || 8;
     const page = Number(req.query.pageNumber) || 1;
     const keyword = req.query.keyword
       ? { name: { $regex: req.query.keyword as string, $options: 'i' } }
@@ -273,18 +286,40 @@ app.get('/api/products', async (req: Request, res: Response) => {
       ? { category: req.query.category as string } 
       : {};
 
-    const query = { ...keyword, ...categoryQuery, tenantId };
+    const priceQuery: any = {};
+    if (req.query.minPrice) priceQuery.$gte = Number(req.query.minPrice);
+    if (req.query.maxPrice) priceQuery.$lte = Number(req.query.maxPrice);
+    const priceFilter = Object.keys(priceQuery).length > 0 ? { price: priceQuery } : {};
+
+    const ratingFilter = req.query.minRating 
+      ? { rating: { $gte: Number(req.query.minRating) } } 
+      : {};
+
+    const query = { ...keyword, ...categoryQuery, ...priceFilter, ...ratingFilter, tenantId };
+
+    let sortOption: any = { createdAt: -1 };
+    switch (req.query.sortBy) {
+      case 'price_asc': sortOption = { price: 1 }; break;
+      case 'price_desc': sortOption = { price: -1 }; break;
+      case 'rating': sortOption = { rating: -1 }; break;
+      case 'newest': sortOption = { createdAt: -1 }; break;
+      case 'popular': sortOption = { numReviews: -1 }; break;
+    }
 
     const count = await Product.countDocuments(query);
     const products = await Product.find(query)
+      .sort(sortOption)
       .limit(pageSize)
       .skip(pageSize * (page - 1));
+
+    const categories = await Product.distinct('category', { tenantId });
 
     res.json({
       products,
       page,
       pages: Math.ceil(count / pageSize),
-      total: count
+      total: count,
+      categories
     });
   } catch (e: any) { 
     res.status(500).json({ error: e.message }); 
@@ -419,14 +454,15 @@ app.put('/api/products/:id', protect, admin, async (req: any, res: Response) => 
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    product.name = req.body.name || product.name;
-    product.price = req.body.price || product.price;
-    product.description = req.body.description || product.description;
-    product.image = req.body.image || product.image;
-    product.category = req.body.category || product.category;
+    product.name = req.body.name ?? product.name;
+    product.price = req.body.price ?? product.price;
+    product.description = req.body.description ?? product.description;
+    product.image = req.body.image ?? product.image;
+    product.category = req.body.category ?? product.category;
 
     const updatedProduct = await product.save();
     await clearCache('products:*');
+    await clearCache(`product:${req.params.id}`);
 
     io.emit('PRICE_UPDATED', updatedProduct);
     res.json(updatedProduct);
@@ -442,6 +478,7 @@ app.delete('/api/products/:id', protect, admin, async (req: any, res: Response) 
 
     await Product.deleteOne({ _id: req.params.id });
     await clearCache('products:*');
+    await clearCache(`product:${req.params.id}`);
 
     io.emit('PRODUCT_DELETED', req.params.id);
     res.json({ message: 'Product removed' });
@@ -501,6 +538,82 @@ app.post('/api/products', protect, admin, async (req: any, res: Response) => {
     res.json(newProduct);
   } catch (e: any) { 
     res.status(500).json({ error: e.message }); 
+  }
+});
+
+// ---- VOUCHER ROUTES ----
+
+app.get('/api/vouchers', async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
+    const vouchers = await Voucher.find({
+      tenantId,
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+      $expr: { $lt: ['$usedCount', '$usageLimit'] }
+    }).select('-claimedBy');
+    res.json(vouchers);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/vouchers/claim', protect, async (req: any, res: Response) => {
+  try {
+    const { code } = req.body;
+    const voucher = await Voucher.findOne({ code: code.toUpperCase(), isActive: true });
+    if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
+    if (new Date() > voucher.expiresAt) return res.status(400).json({ error: 'Voucher has expired' });
+    if (voucher.usedCount >= voucher.usageLimit) return res.status(400).json({ error: 'Voucher usage limit reached' });
+    if (voucher.claimedBy.includes(req.user._id)) return res.status(400).json({ error: 'You have already claimed this voucher' });
+
+    voucher.claimedBy.push(req.user._id);
+    await voucher.save();
+    res.json({ message: 'Voucher claimed successfully', voucher: { code: voucher.code, type: voucher.type, discountType: voucher.discountType, discountValue: voucher.discountValue, description: voucher.description } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/vouchers/apply', protect, async (req: any, res: Response) => {
+  try {
+    const { code, orderTotal } = req.body;
+    const voucher = await Voucher.findOne({ code: code.toUpperCase(), isActive: true });
+    if (!voucher) return res.status(404).json({ error: 'Voucher not found or inactive' });
+    if (new Date() > voucher.expiresAt) return res.status(400).json({ error: 'Voucher has expired' });
+    if (!voucher.claimedBy.includes(req.user._id)) return res.status(400).json({ error: 'You have not claimed this voucher' });
+    if (orderTotal < voucher.minOrderValue) return res.status(400).json({ error: `Minimum order value is $${voucher.minOrderValue}` });
+
+    let discountAmount = 0;
+    if (voucher.type === 'shipping') {
+      discountAmount = 0;
+    } else if (voucher.discountType === 'percentage') {
+      discountAmount = orderTotal * (voucher.discountValue / 100);
+      if (voucher.maxDiscount > 0) discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+    } else {
+      discountAmount = voucher.discountValue;
+    }
+
+    res.json({
+      code: voucher.code,
+      type: voucher.type,
+      discountAmount: Math.round(discountAmount * 100) / 100,
+      freeShipping: voucher.type === 'shipping',
+      finalTotal: Math.round((orderTotal - discountAmount) * 100) / 100
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/vouchers', protect, admin, async (req: any, res: Response) => {
+  try {
+    const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
+    const voucher = new Voucher({ ...req.body, tenantId });
+    await voucher.save();
+    res.status(201).json(voucher);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
