@@ -21,7 +21,7 @@ const Cart = () => {
   
   const rawTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const voucherDiscount = voucherApplied?.discountAmount || 0;
-  const total = (discount?.discount > 0 ? rawTotal * (1 - discount.discount) : rawTotal) - voucherDiscount;
+  const total = Math.max(0, (discount?.discount > 0 ? rawTotal * (1 - discount.discount) : rawTotal) - voucherDiscount);
 
   const applyVoucher = async () => {
     setVoucherError('');

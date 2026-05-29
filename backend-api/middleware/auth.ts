@@ -40,9 +40,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     req.user = await User.findById(decoded.id).select('-password');
     
     if (!req.user) {
-      // Automatic Account Provisioning (Enterprise Pattern)
-      // If user exists in Identity Provider but not in local DB, create them on the fly
-      console.log(`[Auth] Provisioning new user for identity ${decoded.id}`);
+      return res.status(401).json({ error: 'User not found. Account may have been deleted.' });
     }
 
     next();

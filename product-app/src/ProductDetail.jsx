@@ -44,6 +44,8 @@ export default function ProductDetail() {
   useEffect(() => {
     window.scrollTo(0, 0);
     setLoading(true);
+    setSelectedImage(0);
+    setSelectedVariant(null);
     // Fetch product details
     fetch(`${API_BASE}/api/products/${id}`)
       .then(res => res.json())

@@ -86,9 +86,19 @@ router.delete('/:id', protect, admin, async (req: any, res: Response) => {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
-    await Category.deleteMany({ parent: req.params.id });
-    await Category.deleteOne({ _id: req.params.id });
-    res.json({ message: 'Category and its children removed' });
+    const collectDescendantIds = async (parentId: string): Promise<string[]> => {
+      const children = await Category.find({ parent: parentId }).select('_id');
+      let ids: string[] = children.map(c => String(c._id));
+      for (const child of children) {
+        const grandChildren = await collectDescendantIds(String(child._id));
+        ids = ids.concat(grandChildren);
+      }
+      return ids;
+    };
+
+    const descendantIds = await collectDescendantIds(req.params.id);
+    await Category.deleteMany({ _id: { $in: [...descendantIds, req.params.id] } });
+    res.json({ message: 'Category and all descendants removed' });
   } catch (error) {
     res.status(500).json({ error: 'Server error deleting category' });
   }
