@@ -15,9 +15,33 @@ const Cart = () => {
   const [showWheel, setShowWheel] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [discount, setDiscount] = useState(null); // { label, discount, emoji, ... }
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherApplied, setVoucherApplied] = useState(null);
+  const [voucherError, setVoucherError] = useState('');
   
   const rawTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const total = discount?.discount > 0 ? rawTotal * (1 - discount.discount) : rawTotal;
+  const voucherDiscount = voucherApplied?.discountAmount || 0;
+  const total = Math.max(0, (discount?.discount > 0 ? rawTotal * (1 - discount.discount) : rawTotal) - voucherDiscount);
+
+  const applyVoucher = async () => {
+    setVoucherError('');
+    const userInfoString = localStorage.getItem('userInfo');
+    if (!userInfoString) { setVoucherError('Please login first'); return; }
+    const { token } = JSON.parse(userInfoString);
+    try {
+      const res = await fetch(`${API_BASE}/api/vouchers/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ code: voucherCode, orderTotal: rawTotal })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setVoucherApplied(data);
+      } else {
+        setVoucherError(data.error || 'Invalid voucher');
+      }
+    } catch { setVoucherError('Network error'); }
+  };
 
   const handleCheckout = async (shippingAddress) => {
     const userInfoString = localStorage.getItem('userInfo');
@@ -110,7 +134,7 @@ const Cart = () => {
             <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: '700' }}>Scan & Go</h3>
             <p style={{ margin: '0 0 20px 0', fontSize: '0.88rem', opacity: 0.75, lineHeight: 1.5 }}>Scan this QR code with your phone to add products remotely.</p>
             <div style={{ padding: '10px', background: 'white', borderRadius: '12px' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=http://localhost:3000/scanner/${SESSION_CODE}`} alt="QR Code" style={{ width: '100%', display: 'block' }} />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${typeof window !== 'undefined' ? window.location.origin : ''}/scanner/${SESSION_CODE}`} alt="QR Code" style={{ width: '100%', display: 'block' }} />
             </div>
             <p style={{ marginTop: '20px', fontSize: '1.1rem', letterSpacing: '2px', fontWeight: 'bold', color: '#38bdf8' }}>PIN: {SESSION_CODE}</p>
           </div>
@@ -195,6 +219,21 @@ const Cart = () => {
               </button>
             )}
 
+            {/* Voucher Code Input */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" placeholder="Voucher code" value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.9rem', fontWeight: '600' }} />
+                <button onClick={applyVoucher} disabled={!voucherCode} style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: 'var(--primary-color)', color: 'white', fontWeight: '700', cursor: voucherCode ? 'pointer' : 'not-allowed', fontSize: '0.85rem', opacity: voucherCode ? 1 : 0.5 }}>Apply</button>
+              </div>
+              {voucherError && <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#ef4444' }}>{voucherError}</p>}
+              {voucherApplied && (
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#15803d' }}>{voucherApplied.code}: -${voucherApplied.discountAmount?.toFixed(2)}</span>
+                  <button onClick={() => { setVoucherApplied(null); setVoucherCode(''); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>x</button>
+                </div>
+              )}
+            </div>
+
             <Button onClick={() => setShowCheckout(true)} style={{ width: "100%", fontSize: "1.1rem", padding: "18px", borderRadius: '16px' }}>
               Proceed to Checkout
             </Button>
@@ -205,7 +244,7 @@ const Cart = () => {
 
             {/* QR Code thu nhỏ vẫn duy trì để khách ném thêm đồ */}
             <div style={{ marginTop: '25px', padding: '15px', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=http://localhost:3000/scanner/${SESSION_CODE}`} alt="QR Code Mini" style={{ width: '60px', height: '60px', borderRadius: '8px' }} />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${typeof window !== 'undefined' ? window.location.origin : ''}/scanner/${SESSION_CODE}`} alt="QR Code Mini" style={{ width: '60px', height: '60px', borderRadius: '8px' }} />
               <div>
                 <p style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-main)' }}>Scan & Go</p>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Session PIN: <strong style={{color: 'var(--primary-color)', letterSpacing: '1px'}}>{SESSION_CODE}</strong></p>

@@ -68,7 +68,9 @@ export default function ProductList() {
   }, [page, category, keyword, sortBy, minPrice, maxPrice]);
 
   useEffect(() => {
-    const socket = io("https://stuffy-backend-api.onrender.com");
+    const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+    const socketUrl = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+    const socket = io(socketUrl);
 
     socket.on("PRICE_UPDATED", (updatedProduct) => {
       setProducts((current) => current.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));

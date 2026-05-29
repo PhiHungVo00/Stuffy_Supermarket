@@ -46,8 +46,8 @@ const Navbar = () => {
   }, [user]);
 
   return (
-    <nav style={{ display: 'flex', justifyContent: 'center', gap: '40px', padding: '20px 0 0 0', borderBottom: '1px solid var(--border-light)', background: 'white', position: 'relative' }}>
-      <div style={{ display: 'flex', gap: '40px' }}>
+    <nav style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '15px 10px 0 10px', borderBottom: '1px solid var(--border-light)', background: 'white', position: 'relative', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <NavLink to="/" end style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
           Products
         </NavLink>
@@ -117,12 +117,12 @@ export default function App() {
         <ProtectedModule moduleName="Header"><Header /></ProtectedModule>
         <Navbar />
         
-        <main style={{ padding: '50px 20px', flex: 1, maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        <main style={{ padding: '30px 15px', flex: 1, maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           <Routes>
             <Route path="/" element={
               <>
-                <div style={{ background: 'var(--primary-color)', color: 'white', padding: '40px 60px', borderRadius: 'var(--radius-lg)', marginBottom: '50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)' }}>
-                <div>
+                <div style={{ background: 'var(--primary-color)', color: 'white', padding: '30px 25px', borderRadius: 'var(--radius-lg)', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)', flexWrap: 'wrap', gap: '20px' }}>
+                <div style={{ minWidth: '250px', flex: 1 }}>
                   <span className="ds-badge" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', marginBottom: '12px', display: 'inline-block', fontSize: '0.8rem', letterSpacing: '0.5px' }}>Live · Real-time Sync</span>
                   <h2 style={{ fontSize: '2.6rem', margin: '0 0 12px 0', fontWeight: '800', lineHeight: 1.15 }}>Stuffy<span style={{ color: 'var(--accent-color)' }}> Store</span></h2>
                   <p style={{ margin: 0, opacity: 0.75, fontSize: '1.05rem', maxWidth: '460px', lineHeight: 1.6 }}>A modern commerce platform built on Micro Frontends architecture with real-time data synchronization.</p>

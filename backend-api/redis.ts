@@ -40,10 +40,18 @@ export const getCachedData = async <T>(key: string): Promise<T | null> => {
 
 export const clearCache = async (pattern: string) => {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
-      console.log(`[Redis] Cleared ${keys.length} keys matching pattern: ${pattern}`);
+    let cursor = '0';
+    let totalDeleted = 0;
+    do {
+      const [nextCursor, keys] = await redis.scan(Number(cursor), 'MATCH', pattern, 'COUNT', 100);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        totalDeleted += keys.length;
+      }
+    } while (cursor !== '0');
+    if (totalDeleted > 0) {
+      console.log(`[Redis] Cleared ${totalDeleted} keys matching pattern: ${pattern}`);
     }
   } catch (err) {
     console.error(`[Redis] Error clearing cache for pattern ${pattern}:`, err);

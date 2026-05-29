@@ -43,6 +43,30 @@ services:
     ports:
       - "3006:80"
 
+  profile-app:
+    build:
+      context: ./profile-app
+    ports:
+      - "3007:80"
+
+  marketing-app:
+    build:
+      context: ./marketing-app
+    ports:
+      - "3008:80"
+
+  support-app:
+    build:
+      context: ./support-app
+    ports:
+      - "3011:80"
+
+  3d-viewer-app:
+    build:
+      context: ./3d-viewer-app
+    ports:
+      - "3012:80"
+
   # CORE BACKEND & BFF LAYER:
   backend-api:
     build:
@@ -51,8 +75,13 @@ services:
       - "5000:5000"
     environment:
       - MONGO_URI=mongodb://mongodb:27017/stuffy_db
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
+      - JWT_SECRET=${JWT_SECRET:-stuffy_jwt_secret_change_in_production}
     depends_on:
       - mongodb
+      - redis
+      - rabbitmq
 
   graphql-gateway:
     build:
