@@ -30,7 +30,37 @@ const interServiceAuth = (req: Request, res: Response, next: NextFunction) => {
     }
 };
 
-app.use(cors());
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+  'http://localhost:3006',
+  'https://stuffy-container.onrender.com',
+  'https://stuffy-store-app.onrender.com',
+  'https://stuffy-header-app.onrender.com',
+  'https://stuffy-product-app.onrender.com',
+  'https://stuffy-cart-app.onrender.com',
+  'https://stuffy-admin-app.onrender.com',
+  'https://stuffy-profile-app.onrender.com',
+  'https://stuffy-marketing-app.onrender.com',
+  'https://stuffy-support-app.onrender.com',
+  'https://stuffy-3d-viewer-app.onrender.com',
+  'https://stuffy-design-system-app.onrender.com',
+];
+
+app.use(cors({
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';

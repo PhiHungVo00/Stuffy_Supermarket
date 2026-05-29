@@ -33,7 +33,15 @@ const App = () => {
     fetch(`${API_BASE}/api/products`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-      body: JSON.stringify({ name: product.name, price: Number(product.price), description: product.description, category: product.category })
+      body: JSON.stringify({
+        name: product.name,
+        price: Number(product.price),
+        description: product.description,
+        category: product.category,
+        image: product.image || '',
+        images: product.images || [],
+        variants: product.variants || [],
+      })
     })
     .then(res => res.json())
     .then(newP => setProducts([...products, newP]));
@@ -43,7 +51,15 @@ const App = () => {
     fetch(`${API_BASE}/api/products/${updated.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-      body: JSON.stringify({ name: updated.name, price: Number(updated.price), description: updated.description, category: updated.category })
+      body: JSON.stringify({
+        name: updated.name,
+        price: Number(updated.price),
+        description: updated.description,
+        category: updated.category,
+        image: updated.image || '',
+        images: updated.images || [],
+        variants: updated.variants || [],
+      })
     })
     .then(res => res.json())
     .then(updatedP => {
