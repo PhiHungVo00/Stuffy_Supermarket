@@ -49,7 +49,7 @@ export default function OrderManager({ apiBase, getToken }) {
     })
       .then(res => res.json())
       .then(updated => {
-        setOrders(orders.map(o => o._id === updated._id ? updated : o));
+        setOrders(prev => prev.map(o => o._id === updated._id ? updated : o));
       });
   };
 

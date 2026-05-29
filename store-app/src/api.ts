@@ -63,6 +63,13 @@ export const productApi = {
   getAll: (keyword = '', page = 1, category = 'All'): Promise<{ products: Product[], pages: number, total: number }> => 
     apiRequest(`/products?keyword=${keyword}&pageNumber=${page}&category=${category}`),
   
+  getAllFiltered: (keyword = '', page = 1, category = 'All', sortBy = 'newest', minPrice = '', maxPrice = ''): Promise<{ products: Product[], pages: number, total: number, categories: string[] }> => {
+    let url = `/products?keyword=${keyword}&pageNumber=${page}&category=${category}&sortBy=${sortBy}`;
+    if (minPrice) url += `&minPrice=${minPrice}`;
+    if (maxPrice) url += `&maxPrice=${maxPrice}`;
+    return apiRequest(url);
+  },
+  
   getAllGraphQL: async (keyword = '', page = 1, category = 'All'): Promise<{ products: Product[], pages: number, total: number }> => {
     const query = `
       query GetProducts($keyword: String, $page: Int, $category: String) {

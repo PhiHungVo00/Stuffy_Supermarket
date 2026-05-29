@@ -42,7 +42,13 @@ export default function ProductList() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const data = await productApi.getAllGraphQL(keyword, page, category);
+      const hasFilters = sortBy !== 'newest' || minPrice || maxPrice;
+      let data;
+      if (hasFilters) {
+        data = await productApi.getAllFiltered(keyword, page, category, sortBy, minPrice, maxPrice);
+      } else {
+        data = await productApi.getAllGraphQL(keyword, page, category);
+      }
       if (data && data.products) {
         setProducts(data.products);
         setPages(data.pages);
@@ -59,7 +65,7 @@ export default function ProductList() {
 
   useEffect(() => {
     fetchProducts();
-  }, [page, category, keyword, sortBy]);
+  }, [page, category, keyword, sortBy, minPrice, maxPrice]);
 
   useEffect(() => {
     const socket = io("https://stuffy-backend-api.onrender.com");

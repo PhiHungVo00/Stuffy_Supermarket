@@ -14,12 +14,25 @@ const Product = ProductModule.default || ProductModule;
 router.post('/', protect, async (req, res) => {
   const { orderItems, shippingAddress, itemsPrice, taxPrice, totalPrice, paymentMethod } = req.body;
 
-  if (orderItems && orderItems.length === 0) {
+  if (!orderItems || orderItems.length === 0) {
     res.status(400).json({ error: 'No order items' });
     return;
   }
 
   try {
+    // Check stock availability before creating order
+    for (const item of orderItems) {
+      if (item.product) {
+        const product = await Product.findById(item.product);
+        if (!product) {
+          return res.status(400).json({ error: `Product ${item.product} not found` });
+        }
+        if (product.countInStock < (item.qty || 1)) {
+          return res.status(400).json({ error: `Insufficient stock for ${product.name}. Available: ${product.countInStock}` });
+        }
+      }
+    }
+
     const order = new Order({
       user: req.user._id,
       orderItems,
@@ -32,11 +45,18 @@ router.post('/', protect, async (req, res) => {
 
     const createdOrder = await order.save();
 
+    // Atomically decrement stock with availability guard
     for (const item of orderItems) {
       if (item.product) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { countInStock: -(item.qty || 1) }
-        });
+        const qty = item.qty || 1;
+        const result = await Product.findOneAndUpdate(
+          { _id: item.product, countInStock: { $gte: qty } },
+          { $inc: { countInStock: -qty } }
+        );
+        if (!result) {
+          await Order.deleteOne({ _id: createdOrder._id });
+          return res.status(400).json({ error: `Stock depleted for product ${item.product} during order. Order rolled back.` });
+        }
       }
     }
 
@@ -113,9 +133,21 @@ router.put('/:id/status', protect, admin, async (req, res) => {
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
+    const previousStatus = order.status;
     order.status = status;
     if (status === 'Delivered') {
       order.isPaid = true;
+    }
+
+    // Restore stock when order is canceled
+    if (status === 'Canceled' && previousStatus !== 'Canceled') {
+      for (const item of order.orderItems) {
+        if (item.product) {
+          await Product.findByIdAndUpdate(item.product, {
+            $inc: { countInStock: item.qty || 1 }
+          });
+        }
+      }
     }
 
     const updatedOrder = await order.save();
