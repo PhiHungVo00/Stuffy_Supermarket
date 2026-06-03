@@ -67,6 +67,8 @@ jobs:
   build-and-push-dockerhub:
     needs: run-tests
     runs-on: ubuntu-latest
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     # Dùng tính năng matrix để lặp lại việc build tự động cho toàn bộ MFE + Backend
     strategy:
       matrix:
@@ -84,10 +86,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Đăng nhập vào Docker Hub
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Dev') && secrets.DOCKER_USERNAME != ''
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Dev') && env.DOCKER_USERNAME != ''
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ env.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Chuyển tên Owner sang chữ thường (Lowercase)
@@ -99,8 +101,8 @@ jobs:
         id: docker_meta
         run: |
           TAGS="ghcr.io/${{ env.OWNER_LC }}/stuffy-${{ matrix.app }}:latest"
-          if [[ -n "${{ secrets.DOCKER_USERNAME }}" ]]; then
-            TAGS="${TAGS},${{ secrets.DOCKER_USERNAME }}/stuffy-${{ matrix.app }}:latest"
+          if [[ -n "${{ env.DOCKER_USERNAME }}" ]]; then
+            TAGS="${TAGS},${{ env.DOCKER_USERNAME }}/stuffy-${{ matrix.app }}:latest"
           fi
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
