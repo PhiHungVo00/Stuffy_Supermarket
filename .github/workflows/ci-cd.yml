@@ -18,6 +18,28 @@ jobs:
         image: mongo:latest
         ports:
           - 27017:27017
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3.12-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v4
@@ -34,10 +56,12 @@ jobs:
       - name: Chạy E2E Integration Tests
         env:
           MONGO_URI: mongodb://localhost:27017/stuffy_db
+          REDIS_URL: redis://localhost:6379
+          RABBITMQ_URL: amqp://guest:guest@localhost:5672
         run: |
           cd backend-api
           npm run dev &
-          sleep 5
+          sleep 12
           node test-shopee-ev2.js
 
   build-and-push-dockerhub:
