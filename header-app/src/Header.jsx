@@ -5,8 +5,11 @@ import SimpleSearchBar from './SimpleSearchBar';
 import LanguageSwitcher from './LanguageSwitcher';
 // @ts-ignore
 import { cartCount } from 'store/signals';
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 export default function Header() {
+  const { t } = useI18nStore();
   return (
     <header style={{
       background: 'rgba(255, 255, 255, 0.85)',
@@ -39,7 +42,7 @@ export default function Header() {
       <AISearchBar />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <span style={{ fontWeight: '600', color: 'var(--text-muted)', cursor: 'pointer' }}>Support</span>
+        <span style={{ fontWeight: '600', color: 'var(--text-muted)', cursor: 'pointer' }}>{t('support')}</span>
         
         {/* Notification Bell Component */}
         <NotificationBell />

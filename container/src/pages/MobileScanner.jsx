@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 const socket = io("https://stuffy-backend-api.onrender.com");
 
 // Mobile device view: simulates a barcode scanner on a phone screen
 export default function MobileScanner() {
+  const { t } = useI18nStore();
   const { sessionCode } = useParams();
   const [products, setProducts] = useState([]);
   const [scannedId, setScannedId] = useState(null);
@@ -34,12 +37,12 @@ export default function MobileScanner() {
   return (
     <div style={{ maxWidth: '400px', margin: '0 auto', background: '#0f172a', minHeight: '100vh', padding: '20px', color: 'white', borderRadius: '30px' }}>
       <div style={{ textAlign: 'center', marginBottom: '30px', marginTop: '10px' }}>
-        <h2 style={{ fontSize: '1.3rem', margin: '0 0 5px 0', fontWeight: '700' }}>Scan & Go</h2>
-        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem' }}>Session: <strong style={{color: '#22c55e', letterSpacing: '2px'}}>{sessionCode}</strong></p>
+        <h2 style={{ fontSize: '1.3rem', margin: '0 0 5px 0', fontWeight: '700' }}>{t('scan_and_go')}</h2>
+        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem' }}>{t('session')}: <strong style={{color: '#22c55e', letterSpacing: '2px'}}>{sessionCode}</strong></p>
       </div>
 
       <div style={{ padding: '16px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '24px', textAlign: 'center' }}>
-        <p style={{ margin: 0, opacity: 0.55, fontSize: '0.88rem' }}>Tap any product to add it to the cart on the connected device.</p>
+        <p style={{ margin: 0, opacity: 0.55, fontSize: '0.88rem' }}>{t('scan_tap_desc')}</p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

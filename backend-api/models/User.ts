@@ -5,9 +5,13 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'admin', 'seller'], default: 'user' },
   cart: { type: Array, default: [] },
   tenantId: { type: String, required: true, default: 'default_store' },
+  coinsBalance: { type: Number, default: 0 },
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationExpires: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

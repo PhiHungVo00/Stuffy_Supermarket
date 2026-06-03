@@ -2,8 +2,8 @@ import amqp from 'amqplib';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://stuffy:stuffyypass@localhost:5672';
 
-let channel: amqp.Channel;
-let connection: amqp.Connection;
+let channel: any;
+let connection: any;
 
 const MAX_RETRIES = 10;
 const INITIAL_DELAY_MS = 1000;
@@ -24,7 +24,7 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
 
         // Replay any subscriptions registered before the channel was ready
         for (const sub of pendingSubscriptions) {
-            channel.consume(sub.queue, (msg) => {
+            channel.consume(sub.queue, (msg: any) => {
                 if (msg !== null) {
                     const content = JSON.parse(msg.content.toString());
                     sub.callback(content);
@@ -34,13 +34,13 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
         }
 
         // Handle connection close for auto-reconnect
-        connection.on('close', (err) => {
+        connection.on('close', (err: any) => {
             console.error('[RabbitMQ] Connection closed unexpectedly. Reconnecting...');
             channel = undefined as any;
             setTimeout(() => connectRabbitMQ(0), INITIAL_DELAY_MS);
         });
 
-        connection.on('error', (err) => {
+        connection.on('error', (err: any) => {
             console.error('[RabbitMQ] Connection error:', err.message);
         });
     } catch (err: any) {
@@ -71,7 +71,7 @@ export const pubsub = {
             console.error(`[RabbitMQ] Channel not initialized yet. Subscription to ${queue} will replay on connect.`);
             return;
         }
-        channel.consume(queue, (msg) => {
+        channel.consume(queue, (msg: any) => {
             if (msg !== null) {
                 const content = JSON.parse(msg.content.toString());
                 callback(content);

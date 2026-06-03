@@ -11,7 +11,37 @@ permissions:
   packages: write
 
 jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Thiết lập Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cài đặt dependencies
+        run: npm ci
+
+      - name: Chạy E2E Integration Tests
+        env:
+          MONGO_URI: mongodb://localhost:27017/stuffy_db
+        run: |
+          cd backend-api
+          npm run dev &
+          sleep 5
+          node test-shopee-ev2.js
+
   build-and-push-dockerhub:
+    needs: run-tests
     runs-on: ubuntu-latest
     # Dùng tính năng matrix để lặp lại việc build tự động cho toàn bộ MFE + Backend
     strategy:

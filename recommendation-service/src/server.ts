@@ -66,6 +66,10 @@ connectServices();
 
 // 1. RECOMMENDATION ENGINE (Collaborative Filtering Logic)
 async function trackInteraction(userId: string, productId: string) {
+    if (!redis.isOpen) {
+        console.warn('[Recom] Redis is not open/connected. Skipping tracking.');
+        return;
+    }
     console.log(`[Recom] 📈 Tracking click for User ${userId} on Product ${productId}`);
     
     // Simple Collaborative Filtering: 
@@ -113,14 +117,29 @@ async function startConsumer() {
 // 3. RECOMMENDATION API
 app.get('/api/recommendations/:id', async (req, res) => {
     const productId = req.params.id;
-    // Get Top 4 correlated products from Redis Sorted Set
-    const recommendations = await redis.zRangeWithScores(`correlations:${productId}`, 0, 3, { REV: true });
-    
-    // In a real app, we'd fetch names/images from DB here or provide IDs
-    res.json({
-        productId,
-        suggested: recommendations.map(r => ({ id: r.value, score: r.score }))
-    });
+    if (!redis.isOpen) {
+        console.warn('[Recom] Redis is not open/connected. Returning fallback empty array.');
+        return res.json({
+            productId,
+            suggested: []
+        });
+    }
+    try {
+        // Get Top 4 correlated products from Redis Sorted Set
+        const recommendations = await redis.zRangeWithScores(`correlations:${productId}`, 0, 3, { REV: true });
+        
+        // In a real app, we'd fetch names/images from DB here or provide IDs
+        res.json({
+            productId,
+            suggested: recommendations.map(r => ({ id: r.value, score: r.score }))
+        });
+    } catch (error: any) {
+        console.error('[Recom] Error getting recommendations from Redis:', error.message);
+        res.json({
+            productId,
+            suggested: []
+        });
+    }
 });
 
 const PORT = process.env.PORT || 3010;

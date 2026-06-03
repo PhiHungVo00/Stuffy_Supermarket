@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 // @ts-ignore
 import { isDarkMode } from "store/signals";
+// @ts-ignore
+import { useI18nStore } from "store/i18n";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
 const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 export default function FlashSaleBanner() {
+  const { t } = useI18nStore();
   const [timeLeft, setTimeLeft] = useState(0); 
   const [bannerBg, setBannerBg] = useState("");
   const socketRef = useRef(null);
@@ -60,13 +63,13 @@ export default function FlashSaleBanner() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div style={{ fontSize: '2.5rem' }}>⚡</div>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>Flash Sale Madness</h3>
-          <p style={{ margin: '5px 0 0 0', opacity: 0.9, fontSize: '0.95rem' }}>Up to 50% OFF on selected tech gear. Don't miss out!</p>
+          <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('flash_sale')}</h3>
+          <p style={{ margin: '5px 0 0 0', opacity: 0.9, fontSize: '0.95rem' }}>{t('flash_sale_desc')}</p>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <span style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.5px' }}>Ends in:</span>
+        <span style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.5px' }}>{t('ends_in')}:</span>
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ background: '#7f1d1d', padding: '10px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '1.2rem', minWidth: '45px', textAlign: 'center' }}>{h}</div>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', alignSelf: 'center' }}>:</div>

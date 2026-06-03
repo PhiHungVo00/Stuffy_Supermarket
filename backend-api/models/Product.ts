@@ -20,6 +20,7 @@ export interface IProduct extends Document, Omit<SharedProduct, 'id'> {
   tenantId: string;
   images: string[];
   variants: mongoose.Types.ObjectId[];
+  shop: mongoose.Types.ObjectId;
 }
 
 const ProductSchema = new Schema<IProduct>({
@@ -35,6 +36,7 @@ const ProductSchema = new Schema<IProduct>({
   reviews: [reviewSchema],
   tenantId: { type: String, required: true, default: 'default_store' },
   variants: [{ type: Schema.Types.ObjectId, ref: 'ProductVariant' }],
+  shop: { type: Schema.Types.ObjectId, ref: 'Shop', required: true },
 }, { timestamps: true });
 
 export default mongoose.model<IProduct>('Product', ProductSchema);

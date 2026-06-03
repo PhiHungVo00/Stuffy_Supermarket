@@ -22,6 +22,9 @@ module.exports = {
     new ModuleFederationPlugin({
       name: "support",
       filename: "remoteEntry.js",
+      remotes: {
+        store: "store@https://stuffy-store-app.onrender.com/remoteEntry.js",
+      },
       exposes: {
         "./FloatingChat": "./src/FloatingChat",
       },

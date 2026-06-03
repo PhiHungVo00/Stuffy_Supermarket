@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 const SimpleSearchBar = () => {
+  const { t } = useI18nStore();
   const [query, setQuery] = useState('');
   const debounceRef = useRef(null);
 
@@ -22,7 +25,7 @@ const SimpleSearchBar = () => {
     <div style={{ position: 'relative', width: '300px' }}>
       <input
         type="text"
-        placeholder="Search products..."
+        placeholder={t('search_placeholder')}
         value={query}
         onChange={handleChange}
         style={{

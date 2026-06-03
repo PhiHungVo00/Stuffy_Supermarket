@@ -5,7 +5,7 @@ import { Product, CartItem } from "@stuffy/types";
 interface CartState {
   cartItems: CartItem[];
   loadCartFromServer: () => Promise<void>;
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, selectedVariant?: any) => void;
   removeFromCart: (id: string) => void;
   increaseQuantity: (id: string) => void;
   decreaseQuantity: (id: string) => void;
@@ -32,13 +32,33 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addToCart: (product: Product) => set((state) => {
-    const existing = state.cartItems.find(i => i.id === product.id);
+  addToCart: (product: Product, selectedVariant?: any) => set((state) => {
+    const cartItemId = selectedVariant 
+      ? `${product.id}_${selectedVariant.sku}` 
+      : product.id;
+
+    const itemPrice = selectedVariant ? selectedVariant.price : product.price;
+    const itemImage = (selectedVariant && selectedVariant.image) ? selectedVariant.image : product.image;
+
+    const existing = state.cartItems.find(i => i.id === cartItemId || (i as any).cartItemId === cartItemId);
     let newItems: CartItem[];
     if (existing) {
-      newItems = state.cartItems.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      newItems = state.cartItems.map(i => 
+        (i.id === cartItemId || (i as any).cartItemId === cartItemId)
+          ? { ...i, quantity: i.quantity + 1 } 
+          : i
+      );
     } else {
-      newItems = [...state.cartItems, { ...product, quantity: 1 }];
+      const newCartItem = {
+        ...product,
+        id: cartItemId,
+        cartItemId,
+        price: itemPrice,
+        image: itemImage,
+        quantity: 1,
+        selectedVariant: selectedVariant || null
+      } as any;
+      newItems = [...state.cartItems, newCartItem];
     }
     syncToServer(newItems);
     return { cartItems: newItems };

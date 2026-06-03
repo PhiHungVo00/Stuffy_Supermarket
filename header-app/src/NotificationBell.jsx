@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 export default function NotificationBell() {
+  const { t } = useI18nStore();
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -86,15 +89,15 @@ export default function NotificationBell() {
       {showDropdown && (
         <div style={{ position: 'absolute', top: '55px', right: '0', width: '380px', background: 'white', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid var(--border-light)', zIndex: 1000, overflow: 'hidden' }}>
           <div style={{ padding: '20px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>Notifications</h4>
-            <span style={{ fontSize: '0.8rem', color: 'var(--primary-color)', cursor: 'pointer', fontWeight: 'bold' }}>Mark all as read</span>
+            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>{t('notifications')}</h4>
+            <span style={{ fontSize: '0.8rem', color: 'var(--primary-color)', cursor: 'pointer', fontWeight: 'bold' }}>{t('mark_all_read')}</span>
           </div>
           
           <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '10px' }}>💤</div>
-                No new notifications
+                {t('no_new_notifications')}
               </div>
             ) : (
               notifications.map((notif) => (
@@ -112,7 +115,7 @@ export default function NotificationBell() {
             )}
           </div>
           <div style={{ padding: '15px', textAlign: 'center', borderTop: '1px solid var(--border-light)', cursor: 'pointer', color: 'var(--primary-color)', fontWeight: 'bold', fontSize: '0.9rem' }} onMouseOver={e=>e.target.style.background='#f8fafc'} onMouseOut={e=>e.target.style.background='white'}>
-            View previous notifications
+            {t('view_previous_notifications')}
           </div>
         </div>
       )}

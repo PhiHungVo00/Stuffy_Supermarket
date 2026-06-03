@@ -10,7 +10,7 @@ const redisOptions: any = {
     return delay;
   },
   maxRetriesPerRequest: null,
-  enableOfflineQueue: true,
+  enableOfflineQueue: false,
 };
 
 const redis = REDIS_URL

@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+// @ts-ignore
+import { useI18nStore } from "store/i18n";
 
 const SEGMENTS = [
   { label: "5% Off",      discount: 0.05, color: "#6366f1", emoji: "✨" },
@@ -43,11 +45,27 @@ function textPos(index) {
 }
 
 export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
+  const { lang, t } = useI18nStore();
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
   const wheelRef = useRef(null);
   const hasSpun = useRef(false);
+
+  // Dynamic segments mapping for localization
+  const localizedSegments = SEGMENTS.map(seg => {
+    let label = seg.label;
+    if (lang === 'vi') {
+      if (seg.label === "5% Off") label = "Giảm 5%";
+      else if (seg.label === "10% Off") label = "Giảm 10%";
+      else if (seg.label === "15% Off") label = "Giảm 15%";
+      else if (seg.label === "20% Off") label = "Giảm 20%";
+      else if (seg.label === "Free Item") label = "Tặng Quà";
+      else if (seg.label === "Free Ship") label = "Freeship";
+      else if (seg.label === "No luck") label = seg.emoji === "😢" ? "May mắn sau" : "Chúc may mắn";
+    }
+    return { ...seg, label };
+  });
 
   const spin = () => {
     if (spinning || hasSpun.current) return;
@@ -66,7 +84,7 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
 
     setTimeout(() => {
       setSpinning(false);
-      setResult(SEGMENTS[winIndex]);
+      setResult(localizedSegments[winIndex]);
     }, 4200);
   };
 
@@ -108,10 +126,10 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
 
         <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>🎰</div>
         <h2 style={{ margin: "0 0 4px 0", fontSize: "1.8rem", fontWeight: "900", letterSpacing: "-0.5px" }}>
-          Spin & Win
+          {t('spin_and_win')}
         </h2>
         <p style={{ color: "#64748b", margin: "0 0 28px 0", fontSize: "0.95rem" }}>
-          One free spin for your <strong style={{ color: "#6366f1" }}>${total}</strong> order!
+          {t('one_free_spin', { total })}
         </p>
 
         {/* Vòng quay SVG */}
@@ -139,7 +157,7 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
                 display: "block",
               }}
             >
-              {SEGMENTS.map((seg, i) => {
+              {localizedSegments.map((seg, i) => {
                 const tp = textPos(i);
                 return (
                   <g key={i}>
@@ -173,14 +191,14 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
           }}>
             <div style={{ fontSize: "2rem", marginBottom: "4px" }}>{result.emoji}</div>
             <p style={{ margin: 0, fontWeight: "900", fontSize: "1.3rem", color: result.miss ? "#94a3b8" : "#15803d" }}>
-              {result.miss ? "Better luck next time!" : `You got ${result.label}!`}
+              {result.miss ? t('better_luck') : t('you_got', { label: result.label })}
             </p>
             {!result.miss && (
               <p style={{ margin: "4px 0 0 0", color: "#64748b", fontSize: "0.9rem" }}>
                 {result.discount > 0
-                  ? `You save $${(total * result.discount).toFixed(2)} — new total $${(total * (1 - result.discount)).toFixed(2)}`
-                  : result.freeShip ? "Free shipping applied to this order!"
-                  : "A random item will be added to your cart for free!"}
+                  ? t('you_save', { save: (total * result.discount).toFixed(2), total: (total * (1 - result.discount)).toFixed(2) })
+                  : result.freeShip ? t('free_ship_applied')
+                  : t('free_item_applied')}
               </p>
             )}
           </div>
@@ -200,7 +218,7 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
           onMouseOver={e => { if (!spinning) e.currentTarget.style.transform = "translateY(-2px)"; }}
           onMouseOut={e => { e.currentTarget.style.transform = "translateY(0)"; }}
           >
-            {spinning ? "Spinning..." : "SPIN NOW — FREE!"}
+            {spinning ? t('spinning') : t('spin_now')}
           </button>
         ) : result.miss ? (
           <button onClick={onClose} style={{
@@ -208,14 +226,14 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
             background: "#f1f5f9", color: "#64748b",
             fontSize: "1.1rem", fontWeight: "700", cursor: "pointer",
           }}>
-            Close
+            {t('close')}
           </button>
         ) : (
           <div style={{ display: "flex", gap: "12px" }}>
             <button onClick={onClose} style={{
               flex: 1, padding: "14px", borderRadius: "12px", border: "1px solid #e2e8f0",
               background: "white", color: "#64748b", fontWeight: "700", cursor: "pointer",
-            }}>Skip</button>
+            }}>{t('skip')}</button>
             <button onClick={handleApply} style={{
               flex: 2, padding: "14px", borderRadius: "12px", border: "none",
               background: "linear-gradient(135deg, #10b981, #059669)",
@@ -223,7 +241,7 @@ export default function FortuneWheel({ total, onApplyDiscount, onClose }) {
               fontSize: "1.05rem",
               boxShadow: "0 6px 20px rgba(16,185,129,0.35)",
             }}>
-              Apply discount
+              {t('apply_discount')}
             </button>
           </div>
         )}

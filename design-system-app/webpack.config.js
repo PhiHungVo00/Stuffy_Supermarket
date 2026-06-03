@@ -1,4 +1,4 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
+﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
@@ -6,6 +6,7 @@ module.exports = {
   entry: "./src/index.js",
 
   devServer: {
+    headers: { "Access-Control-Allow-Origin": "*" },
     port: 3006,
     historyApiFallback: true,
     hot: false,
@@ -46,3 +47,4 @@ module.exports = {
     new HtmlWebpackPlugin({ template: "./public/index.html" }),
   ],
 };
+

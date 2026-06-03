@@ -1,12 +1,23 @@
-const path = require("path");
+﻿const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const deps = require("./package.json").dependencies;
 
 module.exports = {
-  mode: "production",
+  mode: "development",
   entry: "./src/index.js",
-  devServer: { port: 3007, historyApiFallback: true },
+  devServer: {
+    headers: { "Access-Control-Allow-Origin": "*" },
+    port: 3007,
+    historyApiFallback: true,
+    client: {
+      overlay: {
+        errors: true,
+        warnings: false,
+      },
+    },
+  },
+  performance: { hints: false },
   output: { publicPath: "auto" },
   stats: { errorDetails: true },
   module: {
@@ -43,3 +54,5 @@ module.exports = {
     new HtmlWebpackPlugin({ template: "./public/index.html" }),
   ],
 };
+
+

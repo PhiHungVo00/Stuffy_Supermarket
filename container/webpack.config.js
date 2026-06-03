@@ -1,9 +1,12 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
+﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const { GenerateSW } = require('workbox-webpack-plugin');
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const webpack = require("webpack");
 require("dotenv").config();
+
+// Determine if webpack is running via dev-server / serve mode
+const isDevServer = process.env.WEBPACK_SERVE === 'true' || process.env.WEBPACK_DEV_SERVER === 'true' || process.argv.some(arg => arg.includes('serve'));
 
 // Auto-detect environment: use .env for local dev, fall back to process.env for Render deployment
 // Helper to generate dynamic remote promise for Webpack Module Federation
@@ -12,10 +15,17 @@ module.exports = {
   entry: "./src/index.js",
 
   devServer: {
+    headers: { "Access-Control-Allow-Origin": "*" },
     port: 3000,
     historyApiFallback: true,
     hot: false,
     liveReload: true,
+    client: {
+      overlay: {
+        errors: true,
+        warnings: false,
+      },
+    },
   },
 
   output: {
@@ -88,29 +98,32 @@ module.exports = {
       ],
     }),
 
-    // PWA: Generate Service Worker
-    new GenerateSW({
-      clientsClaim: true,
-      skipWaiting: true,
-      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-      runtimeCaching: [
-        {
-          urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'images',
-            expiration: { maxEntries: 50 },
+    // PWA: Generate Service Worker (disabled in local dev to prevent infinite reload loops)
+    ...((process.env.NODE_ENV === 'production' && !isDevServer) ? [
+
+      new GenerateSW({
+        clientsClaim: true,
+        skipWaiting: true,
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+        runtimeCaching: [
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 50 },
+            },
           },
-        },
-        {
-          urlPattern: /https:\/\/stuffy-backend-api.onrender.com\/api/,
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'api-cache',
-            networkTimeoutSeconds: 10,
-          },
-        }
-      ]
-    }),
+          {
+            urlPattern: /https:\/\/stuffy-backend-api.onrender.com\/api/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              networkTimeoutSeconds: 10,
+            },
+          }
+        ]
+      })
+    ] : []),
   ],
 };
