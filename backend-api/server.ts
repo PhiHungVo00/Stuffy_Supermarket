@@ -11,6 +11,12 @@ import * as Sentry from "@sentry/node";
 import { schema } from './schema';
 import Product from './models/Product';
 import './models/ProductVariant';
+import User from './models/User';
+import Shop from './models/Shop';
+import Order from './models/Order';
+import ChatMessage from './models/ChatMessage';
+import SellerWallet from './models/SellerWallet';
+import CoinTransaction from './models/CoinTransaction';
 import { clearCache } from './redis';
 import { connectRabbitMQ, pubsub } from './rabbitmq';
 import { aiContextSearch } from './ai-search';
@@ -28,7 +34,13 @@ import cartRoutes from './routes/cart';
 import orderRoutes from './routes/orders';
 import addressRoutes from './routes/addresses';
 import categoryRoutes from './routes/categories';
+import shopRoutes from './routes/shops';
+import chatRoutes from './routes/chat';
+import promotionRoutes from './routes/promotions';
+import shippingRoutes from './routes/shipping';
+import productRoutes from './routes/products';
 import { protect, admin } from './middleware/auth';
+import { OutboxProcessor } from './services/OutboxProcessor';
 import { Product as SharedProduct } from '@stuffy/types';
 
 const app = express();
@@ -50,6 +62,7 @@ startApollo().catch(err => console.error('Apollo Start Error:', err));
 
 // RabbitMQ Connection & Internal Worker Simulation
 connectRabbitMQ().then(() => {
+  OutboxProcessor.start();
   // Simulate a Heavy Worker: Sync inventory to legacy systems (ERP/WMS)
   pubsub.subscribe('INVENTORY_SYNC', (data) => {
     console.log(`[Worker] 🚀 Heavy Task Started: Syncing product ${data.name} to secondary systems...`);
@@ -105,6 +118,11 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/promotions', promotionRoutes);
+app.use('/api/shipping', shippingRoutes);
+app.use('/api/products', productRoutes);
 
 app.post('/api/cart/calculate', async (req: Request, res: Response) => {
   try {
@@ -149,6 +167,7 @@ app.post('/api/payments/pay', async (req: Request, res: Response) => {
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS, credentials: true } });
+app.set('io', io);
 
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`);
@@ -162,6 +181,117 @@ io.on('connection', (socket) => {
   });
   socket.on('MOBILE_SCAN_ITEM', ({ sessionCode, product }) => {
     io.to(sessionCode).emit('DESKTOP_RECEIVE_ITEM', product);
+  });
+
+  // User joins their personal room to receive real-time messages
+  socket.on('JOIN_USER_ROOM', (userId) => {
+    socket.join(`user_room:${userId}`);
+    console.log(`[Socket.IO] User ${userId} joined room user_room:${userId}`);
+  });
+
+  // Handle buyer-seller message routing and storage
+  socket.on('SEND_MESSAGE', async ({ senderId, recipientId, message, shopId }) => {
+    try {
+      const chatMsg = await ChatMessage.create({
+        sender: senderId,
+        recipient: recipientId,
+        shop: shopId || undefined,
+        message,
+        isRead: false
+      });
+
+      // Broadcast to both participants
+      io.to(`user_room:${recipientId}`).emit('RECEIVE_MESSAGE', chatMsg);
+      io.to(`user_room:${senderId}`).emit('RECEIVE_MESSAGE', chatMsg);
+    } catch (err: any) {
+      console.error('[Socket.IO] Error processing SEND_MESSAGE:', err.message);
+    }
+  });
+
+  // Join live stream room
+  socket.on('JOIN_LIVE_STREAM', (shopId) => {
+    socket.join(`live_stream:${shopId}`);
+    console.log(`[Socket.IO] Client ${socket.id} joined live stream: ${shopId}`);
+  });
+
+  // Handle stream comment broadcast
+  socket.on('SEND_STREAM_COMMENT', ({ shopId, userName, comment }) => {
+    io.to(`live_stream:${shopId}`).emit('RECEIVE_STREAM_COMMENT', {
+      userName,
+      comment,
+      createdAt: new Date()
+    });
+  });
+
+  // Handle stream product pin broadcast
+  socket.on('PIN_PRODUCT', ({ shopId, product }) => {
+    io.to(`live_stream:${shopId}`).emit('PRODUCT_PINNED', {
+      product,
+      pinnedAt: new Date()
+    });
+    console.log(`[Socket.IO] Pinned product ${product?.name} in live stream room: ${shopId}`);
+  });
+
+  // Handle stream virtual coins gifting
+  socket.on('SEND_VIRTUAL_GIFT', async ({ shopId, senderId, giftType }) => {
+    try {
+      const giftRates: Record<string, number> = {
+        Rose: 5,
+        Heart: 10,
+        Rocket: 50
+      };
+
+      const giftValue = giftRates[giftType] || 5;
+
+      // Find buyer
+      const buyer = await User.findById(senderId);
+      if (!buyer || (buyer.coinsBalance || 0) < giftValue) {
+        socket.emit('GIFT_ERROR', { error: 'Insufficient coins balance to send this gift' });
+        return;
+      }
+
+      // Deduct coins from buyer
+      buyer.coinsBalance = (buyer.coinsBalance || 0) - giftValue;
+      await buyer.save();
+
+      // Log buyer spend transaction
+      await CoinTransaction.create({
+        user: buyer._id,
+        amount: -giftValue,
+        type: 'spend',
+        isCredited: true
+      });
+
+      // Find shop owner (Seller)
+      const shop = await Shop.findById(shopId);
+      if (shop) {
+        const sellerUser = await User.findById(shop.owner);
+        if (sellerUser) {
+          const sellerCredit = Math.floor(giftValue * 0.9); // 10% platform fee
+          sellerUser.coinsBalance = (sellerUser.coinsBalance || 0) + sellerCredit;
+          await sellerUser.save();
+
+          // Log seller earn transaction
+          await CoinTransaction.create({
+            user: sellerUser._id,
+            amount: sellerCredit,
+            type: 'earn',
+            isCredited: true
+          });
+          
+          console.log(`[Socket.IO] User ${buyer.name} gifted ${giftType} to shop ${shop.name}. Deducted ${giftValue} coins. Credited seller ${sellerCredit} coins.`);
+        }
+      }
+
+      // Broadcast gift event to room
+      io.to(`live_stream:${shopId}`).emit('GIFT_RECEIVED', {
+        userName: buyer.name,
+        giftType,
+        giftValue
+      });
+    } catch (err: any) {
+      console.error('[Socket.IO] Error processing SEND_VIRTUAL_GIFT:', err.message);
+    }
   });
 });
 
@@ -195,6 +325,51 @@ setInterval(async () => {
     console.error('[Dynamic Pricing] Error:', err);
   }
 }, 10000);
+
+// Shopee Guarantee Auto-Payout Engine (Delivered orders auto-release after 3 days)
+setInterval(async () => {
+  try {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    // Find delivered orders held in escrow that were delivered more than 3 days ago
+    const autoReleaseOrders = await Order.find({
+      status: 'Delivered',
+      escrowStatus: 'held',
+      deliveredAt: { $lte: threeDaysAgo }
+    });
+
+    for (const order of autoReleaseOrders) {
+      console.log(`[Escrow Auto-Payout] Releasing funds for order ${order._id} (delivered at ${order.deliveredAt})`);
+      
+      order.escrowStatus = 'released';
+      order.escrowReleasedAt = new Date();
+      await order.save();
+
+      let wallet = await SellerWallet.findOne({ shopId: order.shop });
+      if (!wallet) {
+        wallet = new SellerWallet({
+          shopId: order.shop,
+          balance: 0,
+          pendingEscrow: 0,
+          currency: 'USD',
+          transactions: []
+        });
+      }
+
+      wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
+      wallet.balance = Math.round((wallet.balance + order.totalPrice) * 100) / 100;
+      wallet.transactions.push({
+        amount: order.totalPrice,
+        type: 'escrow_payout',
+        description: `Automatic escrow payout released for order ${order._id}`,
+        orderId: order._id,
+        createdAt: new Date()
+      });
+      await wallet.save();
+    }
+  } catch (err: any) {
+    console.error('[Escrow Auto-Payout] Error processing auto-payout:', err.message);
+  }
+}, 15000);
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/stuffy_db';
 
@@ -232,14 +407,37 @@ mongoose.connect(mongoURI)
       }
     } catch (err) { console.error("[Registry] ❌ Seeding failed:", err); }
 
+    let defaultUser = await User.findOne({ email: 'admin@stuffy.com' });
+    if (!defaultUser) {
+      defaultUser = await User.create({
+        name: 'Stuffy Admin',
+        email: 'admin@stuffy.com',
+        password: 'adminpassword',
+        role: 'admin',
+        tenantId: 'default_store'
+      });
+    }
+
+    let defaultShop = await Shop.findOne({ name: 'Default Shop' });
+    if (!defaultShop) {
+      defaultShop = await Shop.create({
+        name: 'Default Shop',
+        owner: defaultUser._id,
+        description: 'Default Stuffy Supermarket Shop',
+        tenantId: 'default_store'
+      });
+    }
+
     const count = await Product.countDocuments();
     if (count === 0) {
       await Product.insertMany([
-        { name: "MacBook Pro M3 Max", price: 3499, category: "Tech", tenantId: 'default_store' },
-        { name: "Apple Vision Pro", price: 3499, category: "Tech", tenantId: 'default_store' },
-        { name: "Sony WH-1000XM5", price: 398, category: "Audio", tenantId: 'default_store' },
-        { name: "PlayStation 5", price: 499, category: "Gaming", tenantId: 'default_store' }
+        { name: "MacBook Pro M3 Max", price: 3499, category: "Tech", tenantId: 'default_store', shop: defaultShop._id },
+        { name: "Apple Vision Pro", price: 3499, category: "Tech", tenantId: 'default_store', shop: defaultShop._id },
+        { name: "Sony WH-1000XM5", price: 398, category: "Audio", tenantId: 'default_store', shop: defaultShop._id },
+        { name: "PlayStation 5", price: 499, category: "Gaming", tenantId: 'default_store', shop: defaultShop._id }
       ]);
+    } else {
+      await Product.updateMany({ shop: { $exists: false } }, { $set: { shop: defaultShop._id } });
     }
 
     const ruleCount = await DiscountRule.countDocuments();
@@ -284,73 +482,6 @@ mongoose.connect(mongoURI)
 
   });
 
-app.get('/api/products', async (req: Request, res: Response) => {
-  try {
-    const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
-    const pageSize = Number(req.query.pageSize) || 8;
-    const page = Number(req.query.pageNumber) || 1;
-    const keyword = req.query.keyword
-      ? { name: { $regex: req.query.keyword as string, $options: 'i' } }
-      : {};
-    const categoryQuery = req.query.category && req.query.category !== 'All' 
-      ? { category: req.query.category as string } 
-      : {};
-
-    const priceQuery: any = {};
-    if (req.query.minPrice) priceQuery.$gte = Number(req.query.minPrice);
-    if (req.query.maxPrice) priceQuery.$lte = Number(req.query.maxPrice);
-    const priceFilter = Object.keys(priceQuery).length > 0 ? { price: priceQuery } : {};
-
-    const ratingFilter = req.query.minRating 
-      ? { rating: { $gte: Number(req.query.minRating) } } 
-      : {};
-
-    const query = { ...keyword, ...categoryQuery, ...priceFilter, ...ratingFilter, tenantId };
-
-    let sortOption: any = { createdAt: -1 };
-    switch (req.query.sortBy) {
-      case 'price_asc': sortOption = { price: 1 }; break;
-      case 'price_desc': sortOption = { price: -1 }; break;
-      case 'rating': sortOption = { rating: -1 }; break;
-      case 'newest': sortOption = { createdAt: -1 }; break;
-      case 'popular': sortOption = { numReviews: -1 }; break;
-    }
-
-    const count = await Product.countDocuments(query);
-    const products = await Product.find(query)
-      .populate('variants')
-      .sort(sortOption)
-      .limit(pageSize)
-      .skip(pageSize * (page - 1));
-
-    const categories = await Product.distinct('category', { tenantId });
-
-    res.json({
-      products,
-      page,
-      pages: Math.ceil(count / pageSize),
-      total: count,
-      categories
-    });
-  } catch (e: any) { 
-    res.status(500).json({ error: e.message }); 
-  }
-});
-
-app.get('/api/products/:id', async (req: Request, res: Response) => {
-  try {
-    const product = await Product.findById(req.params.id).populate('variants');
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-
-    // Track user behavior for Recommendations (Collaborative Filtering)
-    const userId = (req.headers['x-user-id'] as string) || 'guest_' + req.ip;
-    pubsub.publish('user_behavior_tracking', { userId, productId: product._id });
-
-    res.json(product);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 app.post('/api/ai/context-search', async (req: Request, res: Response) => {
   try {
@@ -456,98 +587,6 @@ app.post('/api/registry/switch-version', admin, async (req: Request, res: Respon
     res.json({ message: `Successfully switched ${name} to ${version}`, activeUrl: mfe.activeUrl });
   } catch (e: any) {
     Sentry.captureException(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.put('/api/products/:id', protect, admin, async (req: any, res: Response) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-
-    product.name = req.body.name ?? product.name;
-    product.price = req.body.price ?? product.price;
-    product.description = req.body.description ?? product.description;
-    product.image = req.body.image ?? product.image;
-    product.category = req.body.category ?? product.category;
-
-    const updatedProduct = await product.save();
-    await clearCache('products:*');
-    await clearCache(`product:${req.params.id}`);
-
-    io.emit('PRICE_UPDATED', updatedProduct);
-    res.json(updatedProduct);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.delete('/api/products/:id', protect, admin, async (req: any, res: Response) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-
-    await Product.deleteOne({ _id: req.params.id });
-    await clearCache('products:*');
-    await clearCache(`product:${req.params.id}`);
-
-    io.emit('PRODUCT_DELETED', req.params.id);
-    res.json({ message: 'Product removed' });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/products/:id/reviews', protect, async (req: any, res: Response) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: 'Product not found' });
-
-    const alreadyReviewed = product.reviews?.find(
-      (r: any) => r.user.toString() === req.user._id.toString()
-    );
-    if (alreadyReviewed) {
-      return res.status(400).json({ error: 'Product already reviewed by this user' });
-    }
-
-    const review = {
-      name: req.user.name,
-      rating: Number(req.body.rating),
-      comment: req.body.comment,
-      user: req.user._id,
-    };
-
-    product.reviews = product.reviews || [];
-    product.reviews.push(review as any);
-    product.numReviews = product.reviews.length;
-    product.rating = product.reviews.reduce((acc: number, item: any) => item.rating + acc, 0) / product.reviews.length;
-
-    await product.save();
-    await clearCache(`product:${req.params.id}`);
-    await clearCache('products:*');
-
-    res.status(201).json({ message: 'Review added' });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/products', protect, admin, async (req: any, res: Response) => {
-  try {
-    const newProduct = new Product({
-        ...req.body,
-        tenantId: req.tenantId
-    });
-    await newProduct.save();
-    await clearCache('products:*'); // Invalidate listed products
-    
-    // Async heavy tasks via Message Broker
-    pubsub.publish('INVENTORY_SYNC', newProduct);
-    pubsub.publish('EMAIL_NOTIFICATIONS', { to: 'admin@stuffy.com', body: `New Product Added: ${newProduct.name}` });
-
-    io.emit('NEW_PRODUCT', newProduct);
-    res.json(newProduct);
-  } catch (e: any) { 
     res.status(500).json({ error: e.message }); 
   }
 });
@@ -580,7 +619,18 @@ app.post('/api/vouchers/claim', protect, async (req: any, res: Response) => {
 
     voucher.claimedBy.push(req.user._id);
     await voucher.save();
-    res.json({ message: 'Voucher claimed successfully', voucher: { code: voucher.code, type: voucher.type, discountType: voucher.discountType, discountValue: voucher.discountValue, description: voucher.description } });
+    res.json({
+      message: 'Voucher claimed successfully',
+      voucher: {
+        code: voucher.code,
+        type: voucher.type,
+        discountType: voucher.discountType,
+        discountValue: voucher.discountValue,
+        description: voucher.description,
+        scope: voucher.scope,
+        shopId: voucher.shopId
+      }
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -588,28 +638,60 @@ app.post('/api/vouchers/claim', protect, async (req: any, res: Response) => {
 
 app.post('/api/vouchers/apply', protect, async (req: any, res: Response) => {
   try {
-    const { code, orderTotal } = req.body;
+    const { code, orderTotal, items } = req.body;
     const voucher = await Voucher.findOne({ code: code.toUpperCase(), isActive: true });
     if (!voucher) return res.status(404).json({ error: 'Voucher not found or inactive' });
     if (new Date() > voucher.expiresAt) return res.status(400).json({ error: 'Voucher has expired' });
     if (!voucher.claimedBy.includes(req.user._id)) return res.status(400).json({ error: 'You have not claimed this voucher' });
-    if (orderTotal < voucher.minOrderValue) return res.status(400).json({ error: `Minimum order value is $${voucher.minOrderValue}` });
 
     let discountAmount = 0;
-    if (voucher.type === 'shipping') {
-      discountAmount = 0;
-    } else if (voucher.discountType === 'percentage') {
-      discountAmount = orderTotal * (voucher.discountValue / 100);
-      if (voucher.maxDiscount > 0) discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+    let freeShipping = false;
+
+    if (voucher.scope === 'shop') {
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Cart items are required for shop-scoped vouchers' });
+      }
+
+      let shopSubtotal = 0;
+      for (const item of items) {
+        const productId = item.product || item._id;
+        const product = await Product.findById(productId);
+        if (product && product.shop && product.shop.toString() === voucher.shopId?.toString()) {
+          shopSubtotal += (product.price || item.price) * (item.qty || 1);
+        }
+      }
+
+      if (shopSubtotal < voucher.minOrderValue) {
+        return res.status(400).json({ error: `Minimum shop order value of $${voucher.minOrderValue} is not met for this voucher` });
+      }
+
+      if (voucher.type === 'shipping') {
+        freeShipping = true;
+      } else if (voucher.discountType === 'percentage') {
+        discountAmount = shopSubtotal * (voucher.discountValue / 100);
+        if (voucher.maxDiscount > 0) discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+      } else {
+        discountAmount = voucher.discountValue;
+      }
     } else {
-      discountAmount = voucher.discountValue;
+      // Platform scope
+      if (orderTotal < voucher.minOrderValue) return res.status(400).json({ error: `Minimum order value is $${voucher.minOrderValue}` });
+
+      if (voucher.type === 'shipping') {
+        freeShipping = true;
+      } else if (voucher.discountType === 'percentage') {
+        discountAmount = orderTotal * (voucher.discountValue / 100);
+        if (voucher.maxDiscount > 0) discountAmount = Math.min(discountAmount, voucher.maxDiscount);
+      } else {
+        discountAmount = voucher.discountValue;
+      }
     }
 
     res.json({
       code: voucher.code,
       type: voucher.type,
       discountAmount: Math.round(discountAmount * 100) / 100,
-      freeShipping: voucher.type === 'shipping',
+      freeShipping,
       finalTotal: Math.round((orderTotal - discountAmount) * 100) / 100
     });
   } catch (e: any) {

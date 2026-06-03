@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "scripts": {
     "start": "webpack serve --open",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "dev": "npx webpack serve"
   },
   "type": "commonjs",
   "dependencies": {
-    "@preact/signals-react": "^2.0.0",
+    "@preact/signals-react": "^3.10.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zustand": "^4.5.2"

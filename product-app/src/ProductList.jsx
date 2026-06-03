@@ -162,11 +162,11 @@ export default function ProductList() {
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
-             {category === 'All' ? 'All Products' : category}
+             {category === 'All' ? t('all_products') : category}
            </h3>
            <span className="ds-badge" style={{ background: '#dcfce7', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px' }}>
               <span style={{ width: '8px', height: '8px', background: '#16a34a', borderRadius: '50%', animation: 'blink 1s infinite alternate' }}></span>
-              Live Sync
+              {t('live_sync')}
            </span>
         </div>
 
@@ -177,20 +177,20 @@ export default function ProductList() {
             onChange={e => { setSortBy(e.target.value); setPage(1); }}
             style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-light)', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', background: 'white' }}
           >
-            <option value="newest">Newest</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="rating">Top Rated</option>
-            <option value="popular">Most Popular</option>
+            <option value="newest">{t('sort_newest')}</option>
+            <option value="price_asc">{t('sort_price_asc')}</option>
+            <option value="price_desc">{t('sort_price_desc')}</option>
+            <option value="rating">{t('sort_rating')}</option>
+            <option value="popular">{t('sort_popular')}</option>
           </select>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input type="number" placeholder="Min $" value={minPrice} onChange={e => setMinPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
+            <input type="number" placeholder={t('min_price')} value={minPrice} onChange={e => setMinPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
             <span style={{ color: 'var(--text-muted)' }}>-</span>
-            <input type="number" placeholder="Max $" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
+            <input type="number" placeholder={t('max_price')} value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
           </div>
           {(minPrice || maxPrice) && (
             <button onClick={() => { setMinPrice(''); setMaxPrice(''); setPage(1); }} style={{ padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>
-              Clear Price
+              {t('clear_price')}
             </button>
           )}
         </div>
@@ -201,12 +201,12 @@ export default function ProductList() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '1.3rem' }}>✨</span>
               <div>
-                <p style={{ margin: 0, fontWeight: '800', color: '#4338ca', fontSize: '0.95rem' }}>AI found {aiMatches.length} matching {aiMatches.length === 1 ? 'product' : 'products'}</p>
-                <p style={{ margin: 0, color: '#6366f1', fontSize: '0.82rem' }}>Other products are dimmed</p>
+                <p style={{ margin: 0, fontWeight: '800', color: '#4338ca', fontSize: '0.95rem' }}>{t(aiMatches.length === 1 ? 'ai_found_product' : 'ai_found_products', { count: aiMatches.length })}</p>
+                <p style={{ margin: 0, color: '#6366f1', fontSize: '0.82rem' }}>{t('other_products_dimmed')}</p>
               </div>
             </div>
             <button onClick={() => { setAiMatches(null); window.dispatchEvent(new CustomEvent('AI_SEARCH_RESET')); }} style={{ padding: '6px 16px', fontSize: '0.85rem', fontWeight: '700', color: '#6366f1', background: 'white', border: '1px solid #c7d2fe', borderRadius: '99px', cursor: 'pointer' }}>
-              × Clear filter
+              × {t('clear_filter')}
             </button>
           </div>
         )}
@@ -217,8 +217,8 @@ export default function ProductList() {
           </div>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', border: '2px dashed var(--border-light)', borderRadius: '16px', background: '#f8fafc' }}>
-            <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.4rem' }}>No products found</h3>
-            <p style={{ color: 'var(--text-muted)' }}>Try selecting a different category.</p>
+            <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.4rem' }}>{t('no_products_found')}</h3>
+            <p style={{ color: 'var(--text-muted)' }}>{t('try_different_category')}</p>
           </div>
         ) : (
           <>
@@ -235,12 +235,12 @@ export default function ProductList() {
                     boxShadow: isFlashing ? "0 20px 25px -5px rgba(239, 68, 68, 0.2)" : isAiMatch ? "0 20px 40px rgba(99,102,241,0.2)" : "",
                     opacity: isDimmed ? 0.35 : 1, transition: 'all 0.4s', position: 'relative',
                   }}>
-                    {isAiMatch && ( <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1 }}>AI Pick</div> )}
+                    {isAiMatch && ( <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1 }}>{t('ai_pick')}</div> )}
                     {p.countInStock !== undefined && p.countInStock <= 0 && (
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '8px 20px', borderRadius: '8px', fontWeight: '800', fontSize: '0.9rem', zIndex: 3 }}>Out of Stock</div>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '8px 20px', borderRadius: '8px', fontWeight: '800', fontSize: '0.9rem', zIndex: 3 }}>{t('out_of_stock')}</div>
                     )}
                     {p.countInStock > 0 && p.countInStock <= 5 && (
-                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: '#fef2f2', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1, border: '1px solid #fecaca' }}>Only {p.countInStock} left!</div>
+                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: '#fef2f2', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1, border: '1px solid #fecaca' }}>{t('only_left', { count: p.countInStock })}</div>
                     )}
                     
                     <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)', color: 'var(--text-main)', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', border: '1px solid var(--border-light)', zIndex: 1, textTransform: 'uppercase' }}>
@@ -266,13 +266,13 @@ export default function ProductList() {
                       <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600' }}>({p.numReviews || 0})</span>
                     </div>
 
-                    <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "0.95rem", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: "42px" }}>{p.description || "No description available."}</p>
+                    <p style={{ margin: "0 0 16px 0", color: "#64748b", fontSize: "0.95rem", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: "2", WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: "42px" }}>{p.description || t('no_description')}</p>
                     
                     <button 
                       onClick={() => setActive3DProduct({ color: '#6366f1', image: p.image, name: p.name })} 
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', background: '#f8fafc', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', color: 'var(--text-main)' }}
                     >
-                      View in 3D AR
+                      {t('view_3d')}
                     </button>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'min(15px, auto)', paddingTop: '15px' }}>
@@ -283,10 +283,10 @@ export default function ProductList() {
                         addToCart(p);
                         incrementCart();
                         window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { 
-                          detail: { message: `Added ${p.name} to cart!`, type: 'success' } 
+                          detail: { message: t('added_to_cart_toast', { name: p.name }), type: 'success' } 
                         }));
                       }} style={{ background: isFlashing ? "#ef4444" : "var(--primary-color)" }}>
-                        {isFlashing ? 'Add Now' : t('add_to_cart')}
+                        {isFlashing ? t('add_now') : t('add_to_cart')}
                       </Button>
                     </div>
                   </div>
@@ -301,7 +301,7 @@ export default function ProductList() {
                   onClick={() => setPage(page - 1)} disabled={page === 1}
                   style={{ padding: '10px 16px', borderRadius: '8px', background: page === 1 ? '#f1f5f9' : 'white', border: '1px solid var(--border-light)', color: page === 1 ? '#94a3b8' : 'var(--text-main)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
                 >
-                  Previous
+                  {t('previous')}
                 </button>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {[...Array(pages).keys()].map(x => (
@@ -317,7 +317,7 @@ export default function ProductList() {
                   onClick={() => setPage(page + 1)} disabled={page === pages}
                   style={{ padding: '10px 16px', borderRadius: '8px', background: page === pages ? '#f1f5f9' : 'white', border: '1px solid var(--border-light)', color: page === pages ? '#94a3b8' : 'var(--text-main)', cursor: page === pages ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
                 >
-                  Next
+                  {t('next')}
                 </button>
               </div>
             )}
@@ -326,7 +326,7 @@ export default function ProductList() {
       </div>
 
       {active3DProduct && (
-        <Suspense fallback={<div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(15, 23, 42, 0.9)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}><span style={{ fontSize: '1rem', color: 'white', fontWeight: '600' }}>Loading 3D Engine...</span></div>}>
+        <Suspense fallback={<div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(15, 23, 42, 0.9)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}><span style={{ fontSize: '1rem', color: 'white', fontWeight: '600' }}>{t('loading_3d')}</span></div>}>
           <Viewer3D color={active3DProduct.color} image={active3DProduct.image} name={active3DProduct.name} onClose={() => setActive3DProduct(null)} />
         </Suspense>
       )}

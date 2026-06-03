@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,15 +27,65 @@ ChartJS.register(
   Filler
 );
 
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+
 export default function Dashboard({ products }) {
-  // Mocking BI Data for Enterprise demo
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('admin');
+
+  useEffect(() => {
+    const userInfoString = localStorage.getItem('userInfo');
+    if (userInfoString) {
+      const { token, role } = JSON.parse(userInfoString);
+      setUserRole(role || 'admin');
+
+      fetch(`${API_BASE}/api/orders?pageSize=100`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setOrders(data.orders || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  // Compute Revenue by Day of the week
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  const revenueByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+  
+  orders.forEach(order => {
+    if (order.status !== 'Canceled') {
+      const date = new Date(order.createdAt);
+      const dayName = daysOfWeek[date.getDay()];
+      if (revenueByDay[dayName] !== undefined) {
+        revenueByDay[dayName] += order.totalPrice || 0;
+      }
+    }
+  });
+
+  const realRevenue = labels.map(day => Math.round(revenueByDay[day] * 100) / 100);
+  const totalRevenue = realRevenue.reduce((sum, val) => sum + val, 0);
+
+  // If there are no real orders, show fallback mock data scaled for the user's role
+  const mockRevenue = userRole === 'seller' 
+    ? [200, 450, 600, 1100, 500, 800, 1200] 
+    : [1200, 1900, 3000, 5000, 2300, 3400, 4500];
+
   const salesData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels,
     datasets: [{
       label: 'Revenue ($)',
-      data: [1200, 1900, 3000, 5000, 2300, 3400, 4500],
-      borderColor: 'rgb(99, 102, 241)',
-      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+      data: totalRevenue > 0 ? realRevenue : mockRevenue,
+      borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
+      backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
       fill: true,
       tension: 0.4,
     }]
@@ -47,9 +97,9 @@ export default function Dashboard({ products }) {
   }, {});
 
   const categoryData = {
-    labels: Object.keys(categoryCount),
+    labels: Object.keys(categoryCount).length > 0 ? Object.keys(categoryCount) : ['No Products'],
     datasets: [{
-      data: Object.values(categoryCount),
+      data: Object.values(categoryCount).length > 0 ? Object.values(categoryCount) : [1],
       backgroundColor: [
         '#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'
       ],
@@ -57,12 +107,13 @@ export default function Dashboard({ products }) {
     }]
   };
 
+  // Mocking funnel sessions (adjusted slightly for seller vs platform admin)
   const behaviourData = {
     labels: ['Home View', 'Search', 'Add to Cart', 'AR Experience', 'Checkout'],
     datasets: [{
       label: 'User Sessions',
-      data: [4200, 3100, 1200, 800, 400],
-      backgroundColor: 'rgba(168, 85, 247, 0.7)',
+      data: userRole === 'seller' ? [1200, 800, 350, 210, 110] : [4200, 3100, 1200, 800, 400],
+      backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.7)' : 'rgba(168, 85, 247, 0.7)',
       borderRadius: 12
     }]
   };
@@ -88,7 +139,9 @@ export default function Dashboard({ products }) {
           background: 'white', padding: '24px', borderRadius: '18px', border: '1px solid var(--border-light)',
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue Trend</h4>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {userRole === 'seller' ? 'Shop Revenue Trend' : 'Platform Revenue Trend'}
+          </h4>
           <div style={{ height: '220px' }}>
             <Line data={salesData} options={chartOptions} />
           </div>
@@ -99,7 +152,9 @@ export default function Dashboard({ products }) {
           background: 'white', padding: '24px', borderRadius: '18px', border: '1px solid var(--border-light)',
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Funnel</h4>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {userRole === 'seller' ? 'Shop Visitor Funnel' : 'Platform User Funnel'}
+          </h4>
           <div style={{ height: '220px' }}>
             <Bar data={behaviourData} options={chartOptions} />
           </div>
@@ -110,7 +165,9 @@ export default function Dashboard({ products }) {
           background: 'white', padding: '24px', borderRadius: '18px', border: '1px solid var(--border-light)',
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category Split</h4>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {userRole === 'seller' ? 'Shop Inventory Split' : 'Platform Inventory Split'}
+          </h4>
           <div style={{ height: '220px', display: 'flex', justifyContent: 'center' }}>
             <Doughnut data={categoryData} options={{ ...chartOptions, maintainAspectRatio: false }} />
           </div>

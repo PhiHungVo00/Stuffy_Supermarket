@@ -2,6 +2,10 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
+  shop: mongoose.Types.ObjectId;
+  parentOrderId?: string;
+  shippingFee: number;
+  shippingCarrier?: string;
   orderItems: Array<{
     name: string;
     qty: number;
@@ -21,6 +25,16 @@ export interface IOrder extends Document {
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Canceled';
   paymentMethod: string;
   isPaid: boolean;
+  coinsRedeemed: number;
+  coinsEarned: number;
+  escrowStatus?: 'held' | 'released' | 'refunded' | 'disputed' | 'dispute_rejected';
+  escrowReleasedAt?: Date;
+  deliveredAt?: Date;
+  returnRequestReason?: string;
+  disputeNotes?: string;
+  trackingNumber?: string;
+  shippingLabelUrl?: string;
+  shippingHistory?: Array<{ status: string; location: string; timestamp: Date }>;
 }
 
 const orderSchema = new Schema<IOrder>(
@@ -29,6 +43,22 @@ const orderSchema = new Schema<IOrder>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'User',
+    },
+    shop: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'Shop',
+    },
+    parentOrderId: {
+      type: String,
+    },
+    shippingFee: {
+      type: Number,
+      required: true,
+      default: 0.0,
+    },
+    shippingCarrier: {
+      type: String,
     },
     orderItems: [
       {
@@ -79,6 +109,44 @@ const orderSchema = new Schema<IOrder>(
       required: true,
       default: false,
     },
+    coinsRedeemed: {
+      type: Number,
+      default: 0,
+    },
+    coinsEarned: {
+      type: Number,
+      default: 0,
+    },
+    escrowStatus: {
+      type: String,
+      enum: ['held', 'released', 'refunded', 'disputed', 'dispute_rejected'],
+      default: 'held'
+    },
+    escrowReleasedAt: {
+      type: Date
+    },
+    deliveredAt: {
+      type: Date
+    },
+    returnRequestReason: {
+      type: String
+    },
+    disputeNotes: {
+      type: String
+    },
+    trackingNumber: {
+      type: String
+    },
+    shippingLabelUrl: {
+      type: String
+    },
+    shippingHistory: [
+      {
+        status: { type: String, required: true },
+        location: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now }
+      }
+    ]
   },
   {
     timestamps: true,

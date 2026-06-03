@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const AI_ENABLED = GEMINI_API_KEY.length > 10; // Only active when key is properly configured
@@ -45,6 +47,7 @@ Respond ONLY with the following JSON format, no extra text:
 }
 
 export default function AISearchBar() {
+  const { t } = useI18nStore();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
@@ -78,7 +81,7 @@ export default function AISearchBar() {
     
     const now = Date.now();
     if (now - lastCallRef.current < 3000) {
-      setAiResult({ message: 'Analyzing too fast! Please slow down.', matches: [] });
+      setAiResult({ message: t('too_fast'), matches: [] });
       return;
     }
     
@@ -112,7 +115,7 @@ export default function AISearchBar() {
       }));
 
     } catch (err) {
-      setAiResult({ message: `AI Service Error: ${err.message}`, matches: [] });
+      setAiResult({ message: `${t('ai_error')}: ${err.message}`, matches: [] });
     } finally {
       setLoading(false);
     }
@@ -168,9 +171,9 @@ export default function AISearchBar() {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={
-            cooldown > 0 ? `AI on cooldown — retry in ${cooldown}s` :
-            loading ? 'AI is analyzing...' : 
-            'Ask AI: "Set up a home office"...'
+            cooldown > 0 ? t('cooldown_msg', { seconds: cooldown }) :
+            loading ? t('ai_analyzing') : 
+            t('ask_ai_placeholder')
           }
           disabled={loading || cooldown > 0}
           style={{
@@ -222,7 +225,7 @@ export default function AISearchBar() {
           {/* Nhãn AI */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <span style={{ fontSize: '1.2rem' }}>✨</span>
-            <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gemini AI suggestion</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('gemini_ai_suggestion')}</span>
           </div>
           
           {/* Lời nhận xét của AI */}
@@ -233,7 +236,7 @@ export default function AISearchBar() {
           {aiResult.matches?.length > 0 && (
             <>
               <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Best matches
+                {t('best_matches')}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {aiResult.matches.map((name, i) => (

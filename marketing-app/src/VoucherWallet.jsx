@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+// @ts-ignore
+import { useI18nStore } from "store/i18n";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
 const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 export default function VoucherWallet() {
+  const { t } = useI18nStore();
   const [vouchers, setVouchers] = useState([]);
   const [claimed, setClaimed] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +37,7 @@ export default function VoucherWallet() {
   const handleClaim = async (voucher) => {
     const token = getToken();
     if (!token) {
-      alert('Please login to claim vouchers');
+      alert(t('login_to_claim'));
       return;
     }
     if (claimed.includes(voucher._id)) return;
@@ -49,7 +52,7 @@ export default function VoucherWallet() {
       if (res.ok) {
         setClaimed([...claimed, voucher._id]);
         window.dispatchEvent(new CustomEvent('STUFFY_TOAST', {
-          detail: { message: `Voucher ${voucher.code} claimed!`, type: 'success' }
+          detail: { message: `Voucher ${voucher.code} ${t('claimed').toLowerCase()}`, type: 'success' }
         }));
       } else {
         if (data.error?.includes('already claimed')) {
@@ -64,7 +67,7 @@ export default function VoucherWallet() {
 
   const getTimeLeft = (expiresAt) => {
     const diff = new Date(expiresAt).getTime() - Date.now();
-    if (diff <= 0) return 'Expired';
+    if (diff <= 0) return t('expired');
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     if (days > 0) return `${days}d ${hours}h`;
@@ -72,9 +75,9 @@ export default function VoucherWallet() {
   };
 
   const getValueDisplay = (v) => {
-    if (v.type === 'shipping') return ['Free', 'Ship'];
-    if (v.discountType === 'percentage') return [`${v.discountValue}%`, 'OFF'];
-    return [`$${v.discountValue}`, 'OFF'];
+    if (v.type === 'shipping') return [t('free'), t('ship_badge')];
+    if (v.discountType === 'percentage') return [`${v.discountValue}%`, t('off_badge')];
+    return [`$${v.discountValue}`, t('off_badge')];
   };
 
   if (loading) return null;
@@ -83,9 +86,9 @@ export default function VoucherWallet() {
     <div style={{ background: 'white', borderRadius: '24px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid var(--border-light)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>🎟️</span> My Voucher Wallet
+          <span>🎟️</span> {t('my_voucher_wallet')}
         </h3>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{vouchers.length} available</span>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{vouchers.length} {t('vouchers_available')}</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
@@ -116,7 +119,7 @@ export default function VoucherWallet() {
                     disabled={isClaimed}
                     style={{ background: isClaimed ? 'transparent' : '#fef2f2', color: isClaimed ? '#94a3b8' : '#ef4444', border: isClaimed ? 'none' : '1px solid #fecaca', padding: '5px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: isClaimed ? 'not-allowed' : 'pointer', fontSize: '0.8rem' }}
                   >
-                    {isClaimed ? 'Claimed ✓' : 'Claim Now'}
+                    {isClaimed ? t('claimed') : t('claim_now')}
                   </button>
                 </div>
               </div>

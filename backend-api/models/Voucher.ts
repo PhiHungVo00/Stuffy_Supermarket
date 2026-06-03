@@ -14,6 +14,8 @@ export interface IVoucher extends Document {
   expiresAt: Date;
   isActive: boolean;
   tenantId: string;
+  scope: 'platform' | 'shop';
+  shopId?: mongoose.Types.ObjectId;
 }
 
 const voucherSchema = new Schema<IVoucher>({
@@ -29,7 +31,9 @@ const voucherSchema = new Schema<IVoucher>({
   claimedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   expiresAt: { type: Date, required: true },
   isActive: { type: Boolean, default: true },
-  tenantId: { type: String, required: true, default: 'default_store' }
+  tenantId: { type: String, required: true, default: 'default_store' },
+  scope: { type: String, enum: ['platform', 'shop'], default: 'shop' },
+  shopId: { type: Schema.Types.ObjectId, ref: 'Shop' }
 }, { timestamps: true });
 
 export default mongoose.model<IVoucher>('Voucher', voucherSchema);

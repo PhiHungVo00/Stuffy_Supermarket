@@ -1,4 +1,4 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
+﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const webpack = require("webpack");
 require("dotenv").config();
@@ -9,6 +9,7 @@ module.exports = {
   entry: "./src/index.js",
 
   devServer: {
+    headers: { "Access-Control-Allow-Origin": "*" },
     port: 3001,
     historyApiFallback: true,
     hot: false,
@@ -23,7 +24,7 @@ module.exports = {
     rules: [
       {
         test: /\.m?js$/,
-        type: "javascript/auto",   // 🔥 QUAN TRỌNG
+        type: "javascript/auto",   // ðŸ”¥ QUAN TRá»ŒNG
         resolve: {
           fullySpecified: false,
         },

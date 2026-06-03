@@ -1,13 +1,12 @@
-import React from "react";
+﻿import React from "react";
 import ReactDOM from "react-dom/client";
-import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
 import App from "./App";
 
+// Sentry monitoring (uncomment and configure for production):
+// import * as Sentry from "@sentry/react";
 // Sentry.init({
-//   dsn: "https://your-dsn-here@o0.ingest.sentry.io/0", // Replace with real Sentry DSN
-//   integrations: [new BrowserTracing()],
-//   tracesSampleRate: 1.0, // Monitor everything in development
+//   dsn: "https://your-dsn-here@o0.ingest.sentry.io/0",
+//   tracesSampleRate: 1.0,
 // });
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
