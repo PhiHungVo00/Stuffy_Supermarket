@@ -25,7 +25,7 @@ cd backend-api && npm install
 ### Start the Backend
 ```bash
 cd backend-api
-MONGO_URI=mongodb://localhost:27017/stuffy_test REDIS_URL=redis://localhost:6379 npx ts-node-dev --respawn --transpile-only server.ts
+JWT_SECRET=test_secret_for_testing MONGO_URI=mongodb://localhost:27017/stuffy_test REDIS_URL=redis://localhost:6379 npx ts-node-dev --respawn --transpile-only server.ts
 ```
 - Default port: 5000. Set `PORT=xxxx` to change.
 - Verify boot by checking logs for: `[Server] Listening on port 5000`, `[Redis] Connection established`, `[MongoDB] Connection established`
@@ -74,10 +74,19 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/api/...
 | GET | /api/orders?status=X | Admin | Filter orders by status |
 | GET | /api/orders/:id | Admin | Get order detail |
 | PUT | /api/orders/:id/status | Admin | Update order status (validates: Pending/Processing/Shipped/Delivered/Cancelled) |
+| GET | /api/addresses | User | List user addresses (sorted by isDefault desc) |
+| POST | /api/addresses | User | Create address (isDefault=true atomically unsets others) |
+| PUT | /api/addresses/:id | User | Update address |
+| DELETE | /api/addresses/:id | User | Delete address |
+| GET | /api/categories | Public | List categories (returns `{categories, tree}`) |
+| POST | /api/categories | Admin | Create category (auto-calculates level from parent) |
+| PUT | /api/categories/:id | Admin | Update category |
+| DELETE | /api/categories/:id | Admin | Delete category + all descendants recursively |
 | GET | /api/vouchers | Public | List active vouchers |
 | POST | /api/vouchers/claim | User | Claim a voucher by code (one per user) |
 | POST | /api/vouchers/apply | User | Apply voucher to order (validates min order, calculates discount) |
 | POST | /api/vouchers | Admin | Create new voucher |
+| POST | /graphql | Public | GraphQL endpoint (set `x-tenant-id` header for tenant isolation) |
 
 ### Product Query Parameters
 - `sortBy`: `newest`, `price_asc`, `price_desc`, `rating`, `popular`
@@ -100,6 +109,8 @@ Optional: `description`, `image`, `countInStock` (have defaults).
 - Voucher claim: `{message, voucher}` on success; `{error: "already claimed"}` on duplicate
 - Voucher apply: `{code, type, discountAmount, freeShipping, finalTotal}` — percentage discounts respect `maxDiscount`
 - Orders: POST returns the order object with `status: "Pending"`; products' `countInStock` decremented by `qty`
+- Categories GET: `{categories: [...flat...], tree: [...nested...]}` — tree has `children` arrays
+- Addresses GET: sorted by `isDefault` descending, then `createdAt` descending
 
 ### Testing Tips
 - After dropping the database, **restart the backend** so seed data (products, vouchers) is re-created.
@@ -113,6 +124,7 @@ Optional: `description`, `image`, `countInStock` (have defaults).
 
 ## Devin Secrets Needed
 None required for local testing. All services use Docker containers with default configs.
+Set `JWT_SECRET=test_secret_for_testing` as an environment variable when starting the backend.
 
 ## Frontend Testing Notes
 Frontend MFEs use Webpack Module Federation. Testing individual MFEs in the browser requires ALL remote apps running simultaneously (container, product-app, header-app, cart-app, etc.). This is complex to set up locally. For frontend-specific fixes, consider:
