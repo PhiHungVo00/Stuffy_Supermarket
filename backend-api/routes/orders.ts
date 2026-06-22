@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { protect, admin } from '../middleware/auth';
+import { protect, admin, authorize } from '../middleware/auth';
 import Order from '../models/Order';
 import Product from '../models/Product';
 import Shop from '../models/Shop';
@@ -13,18 +13,77 @@ import Promotion from '../models/Promotion';
 import { RedisInventoryService } from '../services/RedisInventoryService';
 import { DiscountEngine } from '../services/DiscountEngine';
 
+/**
+ * Lỗi nghiệp vụ tường minh khi trừ tồn kho có điều kiện trong transaction thất bại
+ * (sản phẩm không còn đủ kho tại thời điểm trừ). Ném lỗi này trong callback của
+ * session.withTransaction(...) để abort transaction.
+ *
+ * Mang `productId` và cờ nhận diện `isInsufficientStockError` để task 2.6 ánh xạ
+ * sang HTTP 400 mà không phụ thuộc vào việc so khớp chuỗi thông báo lỗi.
+ */
+class InsufficientStockError extends Error {
+  public readonly isInsufficientStockError = true;
+  public readonly productId: any;
+
+  constructor(productId: any) {
+    // Giữ thông báo tương đương hành vi hiện tại để không phá vỡ hợp đồng API đối ngoại
+    super(`Stock depleted for product ${productId} during order processing. Order rolled back.`);
+    this.name = 'InsufficientStockError';
+    this.productId = productId;
+    // Khôi phục prototype chain khi compile target ES5 (an toàn ở mọi target)
+    Object.setPrototypeOf(this, InsufficientStockError.prototype);
+  }
+}
+
+/**
+ * Phát hiện dấu hiệu lỗi "thiếu replica set" của MongoDB khi cố chạy transaction
+ * trên môi trường single-node. MongoDB báo lỗi `IllegalOperation: Transaction
+ * numbers are only allowed on a replica set member or mongos`.
+ *
+ * Nhận diện qua `codeName === 'IllegalOperation'` HOẶC thông điệp chứa các dấu
+ * hiệu đặc trưng, để không phụ thuộc cứng vào một dạng chuỗi duy nhất.
+ */
+function isReplicaSetMissingError(error: any): boolean {
+  if (!error) return false;
+  if (error.codeName === 'IllegalOperation') return true;
+  const message: string = error.message || '';
+  return (
+    message.includes('replica set member or mongos') ||
+    message.includes('Transaction numbers are only allowed')
+  );
+}
+
+/**
+ * Ánh xạ lỗi (sau khi withTransaction thất bại / abort) sang { status, message }
+ * để trả response HTTP nhất quán. Phân loại:
+ *  - Thiếu replica set → 500 với thông báo cấu hình rõ ràng.
+ *  - InsufficientStockError (cờ isInsufficientStockError) → 400 giữ nguyên message.
+ *  - Lỗi khác → 400 với error.message hoặc 'Server error creating order'.
+ */
+function mapErrorToResponse(error: any): { status: number; message: string } {
+  if (isReplicaSetMissingError(error)) {
+    return {
+      status: 500,
+      message: 'Server misconfiguration: MongoDB transactions require a replica set.',
+    };
+  }
+  if (error && error.isInsufficientStockError) {
+    return { status: 400, message: error.message };
+  }
+  return { status: 400, message: (error && error.message) || 'Server error creating order' };
+}
+
 const router = express.Router();
 
 router.post('/', protect, async (req: any, res: Response) => {
-  const { orderItems, shippingAddress, itemsPrice, taxPrice, totalPrice, paymentMethod, voucherCode, selectedCarriers } = req.body;
+  const { orderItems, shippingAddress, itemsPrice, taxPrice, totalPrice, paymentMethod, voucherCode, selectedCarriers, shippingVoucherCode } = req.body;
 
   if (!orderItems || orderItems.length === 0) {
     res.status(400).json({ error: 'No order items' });
     return;
   }
 
-  const createdOrders: any[] = [];
-  const decrementedItems: { productId: any; qty: number }[] = [];
+  let createdOrders: any[] = [];
   const redisDecremented: { promotionId: string; productId: string; qty: number }[] = [];
   let coinsToRedeem = 0;
 
@@ -120,55 +179,87 @@ router.post('/', protect, async (req: any, res: Response) => {
     let platformVoucher: any = null;
     if (voucherCode) {
       platformVoucher = await Voucher.findOne({ code: voucherCode.toUpperCase(), isActive: true, scope: 'platform' });
+      if (platformVoucher && platformVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
+        return res.status(400).json({ error: `Voucher ${voucherCode} is only valid for purchases from livestream` });
+      }
     }
     let shopVoucher: any = null;
     if (req.body.shopVoucherCode) {
       shopVoucher = await Voucher.findOne({ code: req.body.shopVoucherCode.toUpperCase(), isActive: true, scope: 'shop' });
+      if (shopVoucher && shopVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
+        return res.status(400).json({ error: `Voucher ${req.body.shopVoucherCode} is only valid for purchases from livestream` });
+      }
+    }
+    let shippingVoucher: any = null;
+    if (shippingVoucherCode) {
+      shippingVoucher = await Voucher.findOne({ code: shippingVoucherCode.toUpperCase(), isActive: true, scope: 'platform', type: 'shipping' });
+      if (shippingVoucher && shippingVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
+        return res.status(400).json({ error: `Voucher ${shippingVoucherCode} is only valid for purchases from livestream` });
+      }
+    }
+
+    // Split platformVoucher to support multi-tier stackable logic
+    let platformDiscountVoucher: any = null;
+    let platformShippingVoucher: any = null;
+
+    if (platformVoucher) {
+      if (platformVoucher.type === 'shipping') {
+        platformShippingVoucher = platformVoucher;
+      } else {
+        platformDiscountVoucher = platformVoucher;
+      }
+    }
+
+    if (shippingVoucher) {
+      platformShippingVoucher = shippingVoucher;
     }
 
     const totalItemsPrice = orderItems.reduce((acc: number, item: any) => acc + (item.price * (item.qty || 1)), 0);
     
     let platformDiscount = 0;
-    let platformFreeShipping = false;
 
-    if (platformVoucher) {
-      if (platformVoucher.type === 'shipping') {
-        platformFreeShipping = true;
-      } else {
-        if (platformVoucher.discountType === 'percentage') {
-          platformDiscount = totalItemsPrice * (platformVoucher.discountValue / 100);
-          if (platformVoucher.maxDiscount > 0) {
-            platformDiscount = Math.min(platformDiscount, platformVoucher.maxDiscount);
-          }
-        } else {
-          platformDiscount = platformVoucher.discountValue;
+    if (platformDiscountVoucher) {
+      if (platformDiscountVoucher.discountType === 'percentage') {
+        platformDiscount = totalItemsPrice * (platformDiscountVoucher.discountValue / 100);
+        if (platformDiscountVoucher.maxDiscount > 0) {
+          platformDiscount = Math.min(platformDiscount, platformDiscountVoucher.maxDiscount);
         }
+      } else {
+        platformDiscount = platformDiscountVoucher.discountValue;
       }
     }
 
     // Generate parentOrderId
     const parentOrderId = new mongoose.Types.ObjectId().toString();
 
-    // Coins redemption calculation
+    let remainingShippingDiscount = 0;
+    let platformShippingVoucherApplied = false;
+    let accumulatedShippingDiscount = 0;
+    if (platformShippingVoucher && totalItemsPrice >= (platformShippingVoucher.minOrderValue || 0)) {
+      platformShippingVoucherApplied = true;
+      if (platformShippingVoucher.discountType === 'fixed') {
+        remainingShippingDiscount = platformShippingVoucher.discountValue;
+      } else if (platformShippingVoucher.discountType === 'percentage') {
+        // will calculate proportionally per group
+      } else {
+        remainingShippingDiscount = Infinity;
+      }
+    }
+
+    // Coins redemption calculation (compute only — the MongoDB write is deferred to the
+    // transaction phase in task 2.2, so it stays out of the read/compute prep section)
     coinsToRedeem = 0;
     if (req.body.redeemCoins && req.body.redeemCoins > 0) {
       const dbUser = await User.findById(req.user._id);
       const userBalance = dbUser?.coinsBalance || 0;
       const maxCoins = Math.floor(totalItemsPrice * 0.25);
       coinsToRedeem = Math.min(Number(req.body.redeemCoins), userBalance, maxCoins);
-
-      if (coinsToRedeem > 0) {
-        await User.findByIdAndUpdate(req.user._id, { $inc: { coinsBalance: -coinsToRedeem } });
-        await CoinTransaction.create({
-          user: req.user._id,
-          amount: -coinsToRedeem,
-          type: 'spend',
-          isCredited: true
-        });
-      }
     }
 
-    // 5. Create Order document for each shop group
+    // 5. Prepare an Order payload for each shop group (READ/COMPUTE only — no DB writes here).
+    // All discount/shipping/price computation happens before the transaction boundary so the
+    // transaction callback (task 2.2) stays short and is safe to retry.
+    const preparedOrders: { coinsEarned: number; orderData: any }[] = [];
     for (const [shopIdStr, items] of shopGroupsMap.entries()) {
       const currentShopId = shopIdStr === 'default_shop' ? defaultShop._id : shopIdStr;
       const shopDoc = shopIdStr === 'default_shop' ? defaultShop : await Shop.findById(currentShopId);
@@ -192,12 +283,13 @@ router.post('/', protect, async (req: any, res: Response) => {
         };
       });
 
-      // Calculate stackable discount
+            // Calculate stackable discount
+      const isMyShopVoucher = shopVoucher && shopVoucher.shopId && shopVoucher.shopId.toString() === currentShopId.toString();
       const discountResult = DiscountEngine.calculateStackableDiscount({
         items: discountInputItems,
         activePromotions,
-        shopVoucher,
-        platformVoucher,
+        shopVoucher: isMyShopVoucher ? shopVoucher : undefined,
+        platformVoucher: platformDiscountVoucher,
         totalPlatformItemsPrice: totalItemsPrice
       });
 
@@ -210,7 +302,10 @@ router.post('/', protect, async (req: any, res: Response) => {
       }
 
       const groupItemsPrice = items.reduce((acc: number, item: any) => acc + (item.price * (item.qty || 1)), 0);
-      const groupWeightGrams = items.reduce((acc: number, item: any) => acc + ((item.qty || 1) * 1000), 0);
+      const groupWeightGrams = items.reduce((acc: number, item: any) => {
+        const prod = productsMap.get(item.product.toString());
+        return acc + ((item.qty || 1) * (prod?.weight ?? 200));
+      }, 0);
       
       let groupShippingFee = 10; // Default shipping fee per shop
       let groupDiscount = discountResult.shopVoucherDiscount + discountResult.campaignDiscount;
@@ -219,13 +314,9 @@ router.post('/', protect, async (req: any, res: Response) => {
         ? selectedCarriers[currentShopId.toString()]
         : 'ghn';
 
-      if (platformVoucher) {
-        if (platformFreeShipping) {
-          groupShippingFee = 0;
-        } else {
-          // Platform discount computed by DiscountEngine is already allocated proportionally
-          groupDiscount += discountResult.platformVoucherDiscount;
-        }
+      if (platformDiscountVoucher) {
+        // Platform discount computed by DiscountEngine is already allocated proportionally
+        groupDiscount += discountResult.platformVoucherDiscount;
       }
 
       if (groupShippingFee !== 0) {
@@ -245,12 +336,30 @@ router.post('/', protect, async (req: any, res: Response) => {
         }
       }
 
+      let shopShippingFree = false;
       if (shopVoucher && shopVoucher.shopId && shopVoucher.shopId.toString() === currentShopId.toString()) {
         if (groupItemsPrice >= (shopVoucher.minOrderValue || 0)) {
           if (shopVoucher.type === 'shipping') {
+            shopShippingFree = true;
             groupShippingFee = 0;
           }
         }
+      }
+
+      if (!shopShippingFree && platformShippingVoucherApplied && groupShippingFee > 0) {
+        let shippingDiscountForGroup = 0;
+        if (platformShippingVoucher.discountType === 'percentage') {
+          shippingDiscountForGroup = groupShippingFee * (platformShippingVoucher.discountValue / 100);
+          if (platformShippingVoucher.maxDiscount > 0) {
+            const allowedRemaining = Math.max(0, platformShippingVoucher.maxDiscount - accumulatedShippingDiscount);
+            shippingDiscountForGroup = Math.min(shippingDiscountForGroup, allowedRemaining);
+          }
+        } else {
+          shippingDiscountForGroup = Math.min(groupShippingFee, remainingShippingDiscount);
+          remainingShippingDiscount -= shippingDiscountForGroup;
+        }
+        accumulatedShippingDiscount += shippingDiscountForGroup;
+        groupShippingFee = Math.max(0, groupShippingFee - shippingDiscountForGroup);
       }
 
       // Proportional Coins discount calculation
@@ -265,124 +374,160 @@ router.post('/', protect, async (req: any, res: Response) => {
 
       const coinsEarned = Math.floor(groupItemsPrice / 10); // 1 coin per $10 spent
 
-      const order = new Order({
-        user: req.user._id,
-        shop: currentShopId,
-        parentOrderId,
-        orderItems: items,
-        shippingAddress,
-        itemsPrice: Math.round(groupItemsPrice * 100) / 100,
-        shippingFee: Math.round(groupShippingFee * 100) / 100,
-        shippingCarrier: carrierCode,
-        taxPrice: Math.round(groupTaxPrice * 100) / 100,
-        totalPrice: Math.round(groupTotalPrice * 100) / 100,
-        paymentMethod,
-        coinsRedeemed: Math.round(groupCoinsDiscount * 100) / 100,
-        coinsEarned: coinsEarned
+      // Calculate real estimated delivery date based on location distance
+      const shopProvince = (shopDoc?.province || 'Hồ Chí Minh').toLowerCase().trim();
+      const destCity = (shippingAddress.city || 'Hồ Chí Minh').toLowerCase().trim();
+      const isSameCity = shopProvince === destCity || 
+                         shopProvince.includes(destCity) || 
+                         destCity.includes(shopProvince) ||
+                         (shopProvince.includes('hồ chí minh') && destCity.includes('hcm')) ||
+                         (shopProvince.includes('hcm') && destCity.includes('hồ chí minh'));
+      
+      const deliveryDays = isSameCity ? 2 : 4;
+      const estimatedDate = new Date();
+      estimatedDate.setDate(estimatedDate.getDate() + deliveryDays);
+
+      // Prepare the order payload (COMPUTE only — persisted inside the transaction in task 2.2)
+      preparedOrders.push({
+        coinsEarned,
+        orderData: {
+          user: req.user._id,
+          shop: currentShopId,
+          parentOrderId,
+          orderItems: items,
+          shippingAddress,
+          itemsPrice: Math.round(groupItemsPrice * 100) / 100,
+          shippingFee: Math.round(groupShippingFee * 100) / 100,
+          shippingCarrier: carrierCode,
+          taxPrice: Math.round(groupTaxPrice * 100) / 100,
+          totalPrice: Math.round(groupTotalPrice * 100) / 100,
+          paymentMethod,
+          coinsRedeemed: Math.round(groupCoinsDiscount * 100) / 100,
+          coinsEarned: coinsEarned,
+          estimatedDeliveryDate: estimatedDate
+        }
+      });
+    }
+
+    // ================================================================
+    // BẮT ĐẦU TRANSACTION Ở ĐÂY  (task 2.2)
+    // ----------------------------------------------------------------
+    // Mọi thao tác phía TRÊN chỉ là đọc/validate/tính toán + trừ tồn kho
+    // Redis flash sale (ngoài transaction MongoDB). Mọi thao tác GHI
+    // MongoDB phía DƯỚI (trừ coins, tạo Order, trừ tồn kho Product, cập
+    // nhật SellerWallet) sẽ được task 2.2 bọc trong
+    // session.withTransaction(...) để đảm bảo tính nguyên tử.
+    // ================================================================
+
+    // Bọc toàn bộ thao tác GHI MongoDB trong một transaction duy nhất.
+    // withTransaction có thể chạy lại callback khi gặp TransientTransactionError,
+    // nên callback CHỈ chứa thao tác MongoDB và phải reset mọi biến tích lũy ở đầu.
+    // Side-effect Redis (đã trừ phía trên) KHÔNG được đặt trong callback.
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        // Reset trạng thái tích lũy để an toàn khi withTransaction retry
+        createdOrders = [];
+
+        // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
+        if (coinsToRedeem > 0) {
+          await User.findByIdAndUpdate(
+            req.user._id,
+            { $inc: { coinsBalance: -coinsToRedeem } },
+            { session }
+          );
+          // Model.create([...], { session }) phải nhận MẢNG để truyền options session đúng cách
+          await CoinTransaction.create([{
+            user: req.user._id,
+            amount: -coinsToRedeem,
+            type: 'spend',
+            isCredited: true
+          }], { session });
+        }
+
+        // (2) Tạo các Order đã chuẩn bị + CoinTransaction earn (pending)
+        for (const prepared of preparedOrders) {
+          const order = new Order(prepared.orderData);
+          const savedOrder = await order.save({ session });
+          createdOrders.push(savedOrder);
+
+          // Create a pending coin earn transaction
+          if (prepared.coinsEarned > 0) {
+            await CoinTransaction.create([{
+              user: req.user._id,
+              amount: prepared.coinsEarned,
+              type: 'earn',
+              isCredited: false,
+              orderId: savedOrder._id
+            }], { session });
+          }
+        }
+
+        // 6. Trừ tồn kho có điều kiện (atomically) — TRONG transaction (task 2.3)
+        // Trừ chỉ khi countInStock >= qty; nếu không đủ → throw InsufficientStockError
+        // để abort transaction (withTransaction tự hoàn tác mọi ghi MongoDB).
+        for (const item of orderItems) {
+          if (item.product) {
+            const qty = item.qty || 1;
+            const result = await Product.findOneAndUpdate(
+              { _id: item.product, countInStock: { $gte: qty } },
+              { $inc: { countInStock: -qty } },
+              { session, new: true }
+            );
+            if (!result) {
+              throw new InsufficientStockError(item.product);
+            }
+          }
+        }
+
+        // 7. Update Seller Wallet pending escrow (task 2.4)
+        // Dùng findOneAndUpdate $inc với { session, upsert: true } thay cho đọc-sửa-ghi:
+        // - an toàn cạnh tranh (tăng nguyên tử trên server, không đọc-rồi-ghi)
+        // - upsert tạo ví nếu chưa tồn tại (thay nhánh new SellerWallet); các trường mặc định
+        //   (balance, currency) được Mongoose áp dụng nhờ setDefaultsOnInsert (mặc định bật).
+        // savedOrder.totalPrice đã được làm tròn 2 chữ số ở orderData.totalPrice nên $inc trực
+        // tiếp giữ hành vi tương đương (pendingEscrow tăng đúng tổng totalPrice).
+        for (const savedOrder of createdOrders) {
+          await SellerWallet.findOneAndUpdate(
+            { shopId: savedOrder.shop },
+            { $inc: { pendingEscrow: savedOrder.totalPrice } },
+            { session, new: true, upsert: true }
+          );
+        }
       });
 
-      const savedOrder = await order.save();
-      createdOrders.push(savedOrder);
-
-      // Create a pending coin earn transaction
-      if (coinsEarned > 0) {
-        await CoinTransaction.create({
-          user: req.user._id,
-          amount: coinsEarned,
-          type: 'earn',
-          isCredited: false,
-          orderId: savedOrder._id
-        });
-      }
+      res.status(201).json(createdOrders[0]);
+    } finally {
+      await session.endSession();
     }
-
-    // 6. Perform stock decrement atomically
-    for (const item of orderItems) {
-      if (item.product) {
-        const qty = item.qty || 1;
-        const result = await Product.findOneAndUpdate(
-          { _id: item.product, countInStock: { $gte: qty } },
-          { $inc: { countInStock: -qty } }
-        );
-        if (!result) {
-          throw new Error(`Stock depleted for product ${item.product} during order processing. Order rolled back.`);
-        }
-        decrementedItems.push({ productId: item.product, qty });
-      }
-    }
-
-    // 7. Update Seller Wallet pending escrow
-    for (const savedOrder of createdOrders) {
-      let wallet = await SellerWallet.findOne({ shopId: savedOrder.shop });
-      if (!wallet) {
-        wallet = new SellerWallet({
-          shopId: savedOrder.shop,
-          balance: 0,
-          pendingEscrow: 0,
-          currency: 'USD',
-          transactions: []
-        });
-      }
-      wallet.pendingEscrow = Math.round((wallet.pendingEscrow + savedOrder.totalPrice) * 100) / 100;
-      await wallet.save();
-    }
-
-    res.status(201).json(createdOrders[0]);
   } catch (error: any) {
     console.error('[Orders] Error saving order:', error.message);
 
-    // Rollback: Restore Redis stock
+    // Bù trừ thủ công CHỈ cho Redis (thao tác flash sale nằm NGOÀI transaction MongoDB).
+    // Các thao tác ghi MongoDB (coins, Order, tồn kho Product, SellerWallet) đã được
+    // session.withTransaction tự abort nguyên tử — KHÔNG cần (và không được) hoàn tác thủ công.
+    // Chạy TRƯỚC khi phân loại/ánh xạ lỗi để Redis luôn được hoàn về trạng thái nhất quán.
     for (const dec of redisDecremented) {
       try {
         await RedisInventoryService.rollbackInventory(dec.promotionId, dec.productId, dec.qty);
       } catch (rollbackErr: any) {
+        // Req 3.3: chỉ ghi log, không làm hỏng phản hồi trả về client
         console.error(`[Orders] Failed to restore Redis stock for product ${dec.productId}:`, rollbackErr.message);
       }
     }
-    
-    // Rollback: Restore coins
-    if (coinsToRedeem > 0) {
-      try {
-        await User.findByIdAndUpdate(req.user._id, { $inc: { coinsBalance: coinsToRedeem } });
-        await CoinTransaction.create({
-          user: req.user._id,
-          amount: coinsToRedeem,
-          type: 'refund',
-          isCredited: true
-        });
-      } catch (rollbackErr: any) {
-        console.error(`[Orders] Failed to restore coins for user ${req.user._id}:`, rollbackErr.message);
-      }
+
+    // Phân loại và ánh xạ lỗi → HTTP (task 2.6).
+    // Lưu ý: transaction đã abort nên DB sạch, không có trạng thái ghi nửa vời.
+    if (isReplicaSetMissingError(error)) {
+      // Req 5.2: dấu hiệu thiếu replica set → cảnh báo cấu hình vận hành rõ ràng
+      console.error(
+        '[Orders] MongoDB transaction failed: server is not running as a replica set. ' +
+        'Transactions require MongoDB to be configured as a replica set (e.g. --replSet rs0).'
+      );
     }
 
-    // Rollback: Restore stock
-    for (const decItem of decrementedItems) {
-      try {
-        await Product.findByIdAndUpdate(decItem.productId, {
-          $inc: { countInStock: decItem.qty }
-        });
-      } catch (rollbackErr: any) {
-        console.error(`[Orders] Failed to restore stock for product ${decItem.productId}:`, rollbackErr.message);
-      }
-    }
-
-    // Rollback: Delete orders and decrement wallet pending escrow
-    for (const ord of createdOrders) {
-      try {
-        await Order.deleteOne({ _id: ord._id });
-        await CoinTransaction.deleteOne({ orderId: ord._id }); // cleanup pending earn transaction
-        
-        const wallet = await SellerWallet.findOne({ shopId: ord.shop });
-        if (wallet) {
-          wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - ord.totalPrice) * 100) / 100);
-          await wallet.save();
-        }
-      } catch (rollbackErr: any) {
-        console.error(`[Orders] Failed to delete order ${ord._id}:`, rollbackErr.message);
-      }
-    }
-
-    res.status(400).json({ error: error.message || 'Server error creating order' });
+    const { status, message } = mapErrorToResponse(error);
+    res.status(status).json({ error: message });
   }
 });
 
@@ -437,7 +582,11 @@ router.post('/shipping-fee', protect, async (req: any, res: Response) => {
 
     for (const [shopIdStr, items] of shopGroupsMap.entries()) {
       const groupItemsPrice = items.reduce((acc: number, item: any) => acc + (item.price * (item.qty || item.quantity || 1)), 0);
-      const groupWeightGrams = items.reduce((acc: number, item: any) => acc + ((item.qty || item.quantity || 1) * 1000), 0);
+      const groupWeightGrams = items.reduce((acc: number, item: any) => {
+        const productId = item.product || item.id || item._id;
+        const prod = productsMap.get(productId.toString());
+        return acc + ((item.qty || item.quantity || 1) * (prod?.weight ?? 200));
+      }, 0);
 
       const currentShopId = shopIdStr === 'default_shop' ? defaultShop._id : shopIdStr;
       const shopDoc = shopIdStr === 'default_shop' ? defaultShop : await Shop.findById(currentShopId);
@@ -480,11 +629,8 @@ router.get('/myorders', protect, async (req: any, res: Response) => {
   }
 });
 
-router.get('/', protect, async (req: any, res: Response) => {
+router.get('/', protect, authorize('admin', 'seller'), async (req: any, res: Response) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'seller') {
-      return res.status(403).json({ error: 'Not authorized. Admin or Seller role required.' });
-    }
 
     const page = Number(req.query.page) || 1;
     const pageSize = 10;
@@ -514,6 +660,36 @@ router.get('/', protect, async (req: any, res: Response) => {
   }
 });
 
+router.get('/reconciliation/report', protect, authorize('admin', 'seller'), async (req: any, res: Response) => {
+  try {
+
+    let query: any = {};
+    if (req.user.role === 'seller') {
+      const myShop = await Shop.findOne({ owner: req.user._id });
+      if (!myShop) {
+        return res.status(400).json({ error: 'Seller does not have a shop' });
+      }
+      query.shop = myShop._id;
+    }
+
+    const orders = await Order.find(query).populate('shop').sort({ createdAt: -1 });
+
+    // Build CSV content
+    let csv = 'Order ID,Date,Items Price,Shipping Fee,Tax Price,Total Price,Status,Escrow Status,Payment Method,Is Paid\n';
+    
+    for (const order of orders) {
+      const dateStr = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '';
+      csv += `"${order._id}","${dateStr}",${order.itemsPrice},${order.shippingFee},${order.taxPrice},${order.totalPrice},"${order.status}","${order.escrowStatus || 'held'}","${order.paymentMethod}",${order.isPaid}\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=reconciliation_report.csv');
+    res.status(200).send(csv);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Server error generating reconciliation report: ' + error.message });
+  }
+});
+
 router.get('/:id', protect, async (req: any, res: Response) => {
   try {
     const order = await Order.findById(req.params.id).populate('user', 'name email').populate('shop');
@@ -535,11 +711,8 @@ router.get('/:id', protect, async (req: any, res: Response) => {
   }
 });
 
-router.put('/:id/status', protect, async (req: any, res: Response) => {
+router.put('/:id/status', protect, authorize('admin', 'seller'), async (req: any, res: Response) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'seller') {
-      return res.status(403).json({ error: 'Not authorized. Admin or Seller role required.' });
-    }
 
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
@@ -559,6 +732,28 @@ router.put('/:id/status', protect, async (req: any, res: Response) => {
 
     const previousStatus = order.status;
     order.status = status;
+    
+    // Dispatch to 3PL carrier when moving from Pending to Processing
+    if (status === 'Processing' && previousStatus === 'Pending') {
+      try {
+        const dispatchResult = await LogisticsService.dispatchOrderTo3PL(order.shippingCarrier || 'ghn', order);
+        order.trackingNumber = dispatchResult.trackingNumber;
+        order.shippingLabelUrl = dispatchResult.labelUrl;
+        
+        if (!order.shippingHistory) {
+          order.shippingHistory = [];
+        }
+        order.shippingHistory.push({
+          status: 'Processing',
+          location: 'Stuffy Warehouse - Order Dispatched',
+          timestamp: new Date()
+        });
+        console.log(`[Orders] Dispatched order ${order._id} to 3PL. Tracking: ${order.trackingNumber}`);
+      } catch (dispatchErr: any) {
+        console.error(`[Orders] Failed to dispatch order ${order._id} to 3PL:`, dispatchErr.message);
+      }
+    }
+
     if (status === 'Delivered' && previousStatus !== 'Delivered') {
       order.isPaid = true;
       order.deliveredAt = new Date();

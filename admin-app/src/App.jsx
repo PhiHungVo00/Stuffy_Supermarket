@@ -8,6 +8,8 @@ import ShopDecorator from "./components/ShopDecorator";
 import MarketingCenter from "./components/MarketingCenter";
 import LiveConsole from "./components/LiveConsole";
 import FulfillmentManager from "./components/FulfillmentManager";
+import SellerWallet from "./components/SellerWallet";
+import ReviewManager from "./components/ReviewManager";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
 const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
@@ -87,6 +89,7 @@ const App = () => {
         price: Number(product.price), 
         description: product.description, 
         category: product.category,
+        weight: Number(product.weight || 200),
         shop: shopId // Enforced by backend validation for sellers
       })
     })
@@ -105,7 +108,8 @@ const App = () => {
         name: updated.name, 
         price: Number(updated.price), 
         description: updated.description, 
-        category: updated.category 
+        category: updated.category,
+        weight: Number(updated.weight || 200)
       })
     })
     .then(res => res.json())
@@ -248,6 +252,38 @@ const App = () => {
             Shipments
           </button>
         )}
+                {userRole === 'seller' && (
+          <button 
+            onClick={() => setActiveTab('reviews')} 
+            style={{ 
+              padding: '10px 24px', 
+              borderRadius: '8px', 
+              border: 'none', 
+              background: activeTab === 'reviews' ? 'var(--primary-color)' : '#f1f5f9', 
+              color: activeTab === 'reviews' ? 'white' : 'var(--text-main)', 
+              fontWeight: '700', 
+              cursor: 'pointer' 
+            }}
+          >
+            Reviews
+          </button>
+        )}
+{userRole === 'seller' && (
+          <button 
+            onClick={() => setActiveTab('wallet')} 
+            style={{ 
+              padding: '10px 24px', 
+              borderRadius: '8px', 
+              border: 'none', 
+              background: activeTab === 'wallet' ? 'var(--primary-color)' : '#f1f5f9', 
+              color: activeTab === 'wallet' ? 'white' : 'var(--text-main)', 
+              fontWeight: '700', 
+              cursor: 'pointer' 
+            }}
+          >
+            Seller Wallet
+          </button>
+        )}
       </div>
 
       {activeTab === 'products' && (
@@ -287,6 +323,13 @@ const App = () => {
 
       {activeTab === 'shipments' && (
         <FulfillmentManager apiBase={API_BASE} getToken={getToken} />
+      )}
+
+            {activeTab === 'reviews' && (
+        <ReviewManager products={products} apiBase={API_BASE} getToken={getToken} onRefresh={() => fetchProducts(shopId, userRole)} />
+      )}
+{activeTab === 'wallet' && (
+        <SellerWallet apiBase={API_BASE} getToken={getToken} />
       )}
     </div>
   );

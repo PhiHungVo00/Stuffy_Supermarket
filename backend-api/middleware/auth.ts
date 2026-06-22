@@ -57,3 +57,15 @@ export const admin = (req: AuthRequest, res: Response, next: NextFunction) => {
     res.status(403).json({ error: 'Insufficient permissions. Admin role required.' });
   }
 };
+
+export const authorize = (...roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authorized, no identity token' });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: `Insufficient permissions. Role '${req.user.role}' is not authorized.` });
+    }
+    next();
+  };
+};

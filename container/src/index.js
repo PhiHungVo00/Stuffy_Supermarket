@@ -21,21 +21,28 @@ async function orchestrate() {
 
 orchestrate();
 
-// Register Service Worker for PWA
+// Register Service Worker for PWA and Push Notifications
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // 1. Register Push Service Worker (Always active)
+    navigator.serviceWorker.register('/push-sw.js')
+      .then(reg => console.log('[Push Notification] Push Service Worker registered with scope:', reg.scope))
+      .catch(err => console.error('[Push Notification] Push SW registration failed:', err));
+
+    // 2. Register Workbox PWA Service Worker (only in production)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      // In development, unregister any active service worker to prevent infinite reload loops
       navigator.serviceWorker.getRegistrations().then(registrations => {
         for (let registration of registrations) {
-          registration.unregister();
-          console.log('[PWA] Dev mode: Unregistered active service worker to prevent reload loop');
+          if (registration.active && registration.active.scriptURL.includes('service-worker.js')) {
+            registration.unregister();
+            console.log('[PWA] Dev mode: Unregistered active PWA service-worker.js to prevent reload loop');
+          }
         }
       });
     } else {
       navigator.serviceWorker.register('/service-worker.js')
-        .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
-        .catch(err => console.error('[PWA] SW registration failed:', err));
+        .then(reg => console.log('[PWA] PWA Service Worker registered:', reg.scope))
+        .catch(err => console.error('[PWA] PWA SW registration failed:', err));
     }
   });
 }

@@ -1,7 +1,10 @@
-import express, { Response } from 'express';
+﻿import express, { Response } from 'express';
+import { AccessToken } from 'livekit-server-sdk';
 import { protect } from '../middleware/auth';
 import Shop from '../models/Shop';
 import SellerWallet from '../models/SellerWallet';
+import jwt from 'jsonwebtoken';
+import User from '../models/User';
 
 const router = express.Router();
 
@@ -151,10 +154,19 @@ router.post('/mine/wallet/withdraw', protect, async (req: any, res: Response) =>
     }
 
     wallet.balance = Math.round((wallet.balance - amount) * 100) / 100;
+    
+    // Simulate real bank transfer reference creation
+    const referenceId = `STUFFY_WD_${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
+    
     wallet.transactions.push({
       amount: -amount,
       type: 'withdrawal',
       description: `Withdrawal to ${bankName} (${accountNumber})`,
+      status: 'success',
+      bankName,
+      accountNumber,
+      recipientName: req.body.recipientName || req.user.name,
+      referenceId,
       createdAt: new Date()
     });
     await wallet.save();
@@ -165,4 +177,157 @@ router.post('/mine/wallet/withdraw', protect, async (req: any, res: Response) =>
   }
 });
 
+// PUT /api/shops/mine/chatbot - Update AI Chatbot settings
+router.put('/mine/chatbot', protect, async (req: any, res: Response) => {
+  try {
+    if (req.user.role !== 'seller' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Seller role required.' });
+    }
+
+    const shop = await Shop.findOne({ owner: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found for this seller' });
+    }
+
+    const { aiChatbotEnabled, aiChatbotPrompt } = req.body;
+    
+    if (aiChatbotEnabled !== undefined) shop.aiChatbotEnabled = aiChatbotEnabled;
+    if (aiChatbotPrompt !== undefined) shop.aiChatbotPrompt = aiChatbotPrompt;
+
+    const updatedShop = await shop.save();
+    res.json(updatedShop);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error updating chatbot settings' });
+  }
+});
+
+// PUT /api/shops/mine/livestream - Update live stream status and URL
+router.put('/mine/livestream', protect, async (req: any, res: Response) => {
+  try {
+    if (req.user.role !== 'seller' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only sellers or admins can manage livestream settings' });
+    }
+
+    const shop = await Shop.findOne({ owner: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found for this seller' });
+    }
+
+    const { isLive, activeStreamUrl } = req.body;
+    
+    if (isLive !== undefined) shop.isLive = isLive;
+    if (activeStreamUrl !== undefined) shop.activeStreamUrl = activeStreamUrl;
+    
+    const updatedShop = await shop.save();
+    
+    // Emit updates to clients via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`live_stream:${shop._id}`).emit('LIVESTREAM_STATUS_UPDATE', {
+        isLive: shop.isLive,
+        activeStreamUrl: shop.activeStreamUrl
+      });
+      io.emit('GLOBAL_LIVESTREAM_UPDATE', {
+        shopId: shop._id,
+        isLive: shop.isLive
+      });
+    }
+
+    res.json(updatedShop);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Server error updating livestream settings' });
+  }
+});
+
+// POST /api/shops/:id/live-token - Generate LiveKit token for Host or Viewer
+router.post('/:id/live-token', async (req: any, res: Response) => {
+  const { role } = req.body; // 'host' or 'viewer'
+  const shopId = req.params.id;
+
+  // Optional manual authentication
+  let user: any = null;
+  let tokenStr: string | undefined;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    tokenStr = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies && req.cookies.jwt) {
+    tokenStr = req.cookies.jwt;
+  }
+
+  if (tokenStr) {
+    try {
+      const decoded: any = jwt.verify(tokenStr, process.env.JWT_SECRET || 'fallback_secret_stuffy');
+      user = await User.findById(decoded.id).select('-password');
+    } catch (e) {
+      console.warn('[shops live-token] Optional auth token verification failed.');
+    }
+  }
+
+  // If host, user MUST be logged in and own the shop
+  if (role === 'host') {
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required for host role' });
+    }
+    try {
+      const shop = await Shop.findById(shopId);
+      if (!shop || shop.owner.toString() !== user._id.toString()) {
+        return res.status(403).json({ error: 'Only the shop owner can publish livestream' });
+      }
+    } catch (e) {
+      return res.status(500).json({ error: 'Error validating shop ownership' });
+    }
+  }
+
+  const userName = user ? user.name : 'Guest_' + Math.floor(Math.random() * 10000);
+  const userId = user ? user._id.toString() : 'guest_' + Date.now();
+
+  const livekitApiKey = process.env.LIVEKIT_API_KEY;
+  const livekitApiSecret = process.env.LIVEKIT_API_SECRET;
+  const livekitUrl = process.env.LIVEKIT_URL || 'wss://your-livekit-project.livekit.cloud';
+  
+  if (!livekitApiKey || !livekitApiSecret || livekitApiKey === 'mock_key') {
+    // Fallback to local SFU mode
+    return res.json({
+      useLocalSfu: true,
+      shopId,
+      role,
+      userName
+    });
+  }
+  
+  try {
+    const identity = `${userId}_${Date.now()}`;
+    const roomName = `live_stream:${shopId}`;
+    
+    const at = new AccessToken(livekitApiKey, livekitApiSecret, {
+      identity,
+      name: userName
+    });
+    
+    at.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canPublish: role === 'host',
+      canSubscribe: true,
+      canPublishData: true
+    });
+    
+    const token = await at.toJwt();
+    
+    res.json({
+      token,
+      url: livekitUrl,
+      roomName,
+      identity,
+      role,
+      useLocalSfu: false
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Error generating LiveKit token' });
+  }
+});
+
 export default router;
+
+
+

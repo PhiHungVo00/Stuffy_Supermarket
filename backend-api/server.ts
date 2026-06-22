@@ -36,10 +36,22 @@ import addressRoutes from './routes/addresses';
 import categoryRoutes from './routes/categories';
 import shopRoutes from './routes/shops';
 import chatRoutes from './routes/chat';
+import payosRoutes from './routes/paymentPayOS';
 import promotionRoutes from './routes/promotions';
+import voucherRoutes from './routes/vouchers';
 import shippingRoutes from './routes/shipping';
 import productRoutes from './routes/products';
+import notificationRoutes from './routes/notifications';
+import localizationRoutes from './routes/localizations';
+import aiSearchRoutes from './routes/aiSearch';
+import analyticsRoutes from './routes/analytics';
+import { seedLocalization } from './seedLocalization';
+import Localization from './models/Localization';
+import { initWebPush } from './services/webPush';
+import { initCacheInvalidation } from './services/CacheInvalidationService';
+import { EscrowDaemon } from './services/escrowDaemon';
 import { protect, admin } from './middleware/auth';
+import { seoPrerender } from './middleware/seoPrerender';
 import { OutboxProcessor } from './services/OutboxProcessor';
 import { Product as SharedProduct } from '@stuffy/types';
 
@@ -65,11 +77,19 @@ connectRabbitMQ().then(() => {
   OutboxProcessor.start();
   // Simulate a Heavy Worker: Sync inventory to legacy systems (ERP/WMS)
   pubsub.subscribe('INVENTORY_SYNC', (data) => {
-    console.log(`[Worker] 🚀 Heavy Task Started: Syncing product ${data.name} to secondary systems...`);
+    console.log(`[Worker] 🚀 Heavy Task Started: Syncing product ${data.name || data.orderId} to secondary systems...`);
     // Simulate complex calculation or slow API call (3s delay)
     setTimeout(() => {
-        console.log(`[Worker] ✅ Task Completed: Product ${data.name} successfully synced.`);
+        console.log(`[Worker] ✅ Task Completed: Product ${data.name || data.orderId} successfully synced.`);
     }, 3000);
+  });
+
+  // Simulate an Email Worker: Send order confirmation emails
+  pubsub.subscribe('EMAIL_NOTIFICATIONS', (data) => {
+    console.log(`[Email Worker] 📧 Sending email notification to ${data.to || data.email}...`);
+    setTimeout(() => {
+        console.log(`[Email Worker] ✅ Email successfully sent to ${data.to || data.email}.`);
+    }, 2000);
   });
 }).catch(console.error);
 
@@ -111,6 +131,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(seoPrerender);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -120,9 +141,15 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/payments/payos', payosRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/vouchers', voucherRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/localization', localizationRoutes);
+app.use('/api/ai-search', aiSearchRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.post('/api/cart/calculate', async (req: Request, res: Response) => {
   try {
@@ -190,19 +217,83 @@ io.on('connection', (socket) => {
   });
 
   // Handle buyer-seller message routing and storage
-  socket.on('SEND_MESSAGE', async ({ senderId, recipientId, message, shopId }) => {
+  socket.on('SEND_MESSAGE', async ({ senderId, recipientId, message, shopId, attachmentType, attachedProduct, attachedOrder }) => {
     try {
-      const chatMsg = await ChatMessage.create({
+      let chatMsg = await ChatMessage.create({
         sender: senderId,
         recipient: recipientId,
         shop: shopId || undefined,
         message,
-        isRead: false
+        isRead: false,
+        attachmentType: attachmentType || 'text',
+        attachedProduct: attachedProduct || undefined,
+        attachedOrder: attachedOrder || undefined
       });
+
+      chatMsg = await chatMsg.populate([
+        { path: 'attachedProduct', select: 'name price image category countInStock' },
+        { path: 'attachedOrder', select: '_id itemsPrice totalPrice status createdAt paymentMethod' }
+      ]);
 
       // Broadcast to both participants
       io.to(`user_room:${recipientId}`).emit('RECEIVE_MESSAGE', chatMsg);
       io.to(`user_room:${senderId}`).emit('RECEIVE_MESSAGE', chatMsg);
+
+      // AI Chatbot Auto-Responder trigger
+      if (shopId) {
+        const Shop = require('./models/Shop').default;
+        const Product = require('./models/Product').default;
+        const shop = await Shop.findById(shopId);
+        
+        if (shop && shop.aiChatbotEnabled && recipientId === shop.owner.toString()) {
+          setTimeout(async () => {
+            try {
+              const products = await Product.find({ shop: shop._id }).limit(10);
+              const productListStr = products.map((p: any) => `- ${p.name}: ${p.price} (${p.description || 'No description'})`).join('\n');
+              
+              const systemPrompt = shop.aiChatbotPrompt || 'Bạn là trợ lý tư vấn bán hàng của cửa hàng.';
+              const finalPrompt = `${systemPrompt}
+Tên cửa hàng: ${shop.name}
+Mô tả cửa hàng: ${shop.description || 'Chưa có mô tả'}
+
+Danh sách sản phẩm nổi bật của cửa hàng:
+${productListStr}
+
+Khách hàng hỏi: "${message}"
+
+Hãy đưa ra câu trả lời tư vấn ngắn gọn, lịch sự, thuyết phục bằng tiếng Việt, hướng dẫn khách hàng mua hàng nếu có sản phẩm phù hợp.`;
+
+              console.log(`[AI Chatbot] Invoking Gemini for Shop ${shop.name}`);
+              let aiReplyText = '';
+              
+              const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+              if (GEMINI_API_KEY && GEMINI_API_KEY !== 'mock_gemini_key') {
+                const { GoogleGenerativeAI } = require('@google/generative-ai');
+                const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const result = await model.generateContent(finalPrompt);
+                aiReplyText = result.response.text().trim();
+              } else {
+                aiReplyText = `[AI Chatbot Trợ lý ${shop.name}] Cảm ơn bạn đã quan tâm! Hiện tại shop đang có các sản phẩm nổi bật như: ${products.map((p: any) => p.name).join(', ')}. Hãy nhấn "Mua ngay" hoặc hỏi thêm để được tư vấn nhé!`;
+              }
+              
+              const aiMsg = await ChatMessage.create({
+                sender: shop.owner,
+                recipient: senderId,
+                shop: shop._id,
+                message: aiReplyText,
+                isRead: false
+              });
+              
+              io.to(`user_room:${senderId}`).emit('RECEIVE_MESSAGE', aiMsg);
+              io.to(`user_room:${shop.owner}`).emit('RECEIVE_MESSAGE', aiMsg);
+              
+            } catch (aiErr: any) {
+              console.error('[AI Chatbot] Error generating AI chatbot reply:', aiErr.message);
+            }
+          }, 1000);
+        }
+      }
     } catch (err: any) {
       console.error('[Socket.IO] Error processing SEND_MESSAGE:', err.message);
     }
@@ -210,8 +301,59 @@ io.on('connection', (socket) => {
 
   // Join live stream room
   socket.on('JOIN_LIVE_STREAM', (shopId) => {
-    socket.join(`live_stream:${shopId}`);
-    console.log(`[Socket.IO] Client ${socket.id} joined live stream: ${shopId}`);
+    // support both string shopId and object payload { shopId, role }
+    let actualShopId = shopId;
+    let role = 'viewer';
+    if (typeof shopId === 'object' && shopId !== null) {
+      actualShopId = shopId.shopId;
+      role = shopId.role;
+    }
+    
+    const roomName = `live_stream:${actualShopId}`;
+    socket.join(roomName);
+    console.log(`[Socket.IO] Client ${socket.id} joined live stream: ${actualShopId} as ${role}`);
+    
+    // Broadcast real-time viewer count based on room size
+    const clients = io.sockets.adapter.rooms.get(roomName);
+    const numViewers = clients ? clients.size : 0;
+    io.to(roomName).emit('LIVESTREAM_VIEWER_COUNT', { count: numViewers });
+
+    if (role === 'viewer') {
+      socket.to(roomName).emit('VIEWER_JOINED', { viewerId: socket.id });
+    }
+  });
+
+  socket.on('disconnecting', () => {
+    for (const room of socket.rooms) {
+      if (room.startsWith('live_stream:')) {
+        const clients = io.sockets.adapter.rooms.get(room);
+        const numViewers = clients ? Math.max(0, clients.size - 1) : 0;
+        socket.to(room).emit('LIVESTREAM_VIEWER_COUNT', { count: numViewers });
+      }
+    }
+  });
+
+  socket.on('RTC_SIGNAL', ({ targetId, signalData }) => {
+    io.to(targetId).emit('RTC_SIGNAL', {
+      senderId: socket.id,
+      signalData
+    });
+  });
+
+  // Local SFU WebSocket-based Media Forwarder fallback
+  socket.on('HOST_STREAM_FRAME', ({ shopId, frame }) => {
+    socket.to(`live_stream:${shopId}`).emit('VIEWER_STREAM_FRAME', frame);
+  });
+
+  // Handle real-time live order placement sync
+  socket.on('LIVE_ORDER_PLACED', ({ shopId, amount, productName, productId }) => {
+    io.to(`live_stream:${shopId}`).emit('LIVE_ORDER_RECORDED', {
+      amount,
+      productName,
+      productId,
+      timestamp: new Date()
+    });
+    console.log(`[Socket.IO] Live order recorded in room ${shopId}: $${amount} for product "${productName}"`);
   });
 
   // Handle stream comment broadcast
@@ -327,55 +469,19 @@ setInterval(async () => {
 }, 10000);
 
 // Shopee Guarantee Auto-Payout Engine (Delivered orders auto-release after 3 days)
-setInterval(async () => {
-  try {
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    // Find delivered orders held in escrow that were delivered more than 3 days ago
-    const autoReleaseOrders = await Order.find({
-      status: 'Delivered',
-      escrowStatus: 'held',
-      deliveredAt: { $lte: threeDaysAgo }
-    });
-
-    for (const order of autoReleaseOrders) {
-      console.log(`[Escrow Auto-Payout] Releasing funds for order ${order._id} (delivered at ${order.deliveredAt})`);
-      
-      order.escrowStatus = 'released';
-      order.escrowReleasedAt = new Date();
-      await order.save();
-
-      let wallet = await SellerWallet.findOne({ shopId: order.shop });
-      if (!wallet) {
-        wallet = new SellerWallet({
-          shopId: order.shop,
-          balance: 0,
-          pendingEscrow: 0,
-          currency: 'USD',
-          transactions: []
-        });
-      }
-
-      wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-      wallet.balance = Math.round((wallet.balance + order.totalPrice) * 100) / 100;
-      wallet.transactions.push({
-        amount: order.totalPrice,
-        type: 'escrow_payout',
-        description: `Automatic escrow payout released for order ${order._id}`,
-        orderId: order._id,
-        createdAt: new Date()
-      });
-      await wallet.save();
-    }
-  } catch (err: any) {
-    console.error('[Escrow Auto-Payout] Error processing auto-payout:', err.message);
-  }
-}, 15000);
+// Started background Escrow Auto-Release worker
+EscrowDaemon.start(15000, 3);
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/stuffy_db';
 
 mongoose.connect(mongoURI)
   .then(async () => {
-    console.log('[MongoDB] Connection established successfully.');
+    const isReplicaSet = mongoURI.includes('replicaSet=');
+    console.log(`[MongoDB] Connection established successfully ${isReplicaSet ? '(Replica Set Mode)' : '(Single Node Mode)'}.`);
+    console.log('[CQRS DB Splitting] Read-Write Database splitting active: product/category read operations are routed to replicas.');
+    initWebPush();
+    initCacheInvalidation();
+    await seedLocalization();
     
     // --- GOVERNANCE REGISTRY SEEDER ---
     const MFE_DEFAULTS = {
@@ -638,11 +744,15 @@ app.post('/api/vouchers/claim', protect, async (req: any, res: Response) => {
 
 app.post('/api/vouchers/apply', protect, async (req: any, res: Response) => {
   try {
-    const { code, orderTotal, items } = req.body;
+    const { code, orderTotal, items, fromLivestream } = req.body;
     const voucher = await Voucher.findOne({ code: code.toUpperCase(), isActive: true });
     if (!voucher) return res.status(404).json({ error: 'Voucher not found or inactive' });
     if (new Date() > voucher.expiresAt) return res.status(400).json({ error: 'Voucher has expired' });
     if (!voucher.claimedBy.includes(req.user._id)) return res.status(400).json({ error: 'You have not claimed this voucher' });
+
+    if (voucher.isLivestreamExclusive && !fromLivestream) {
+      return res.status(400).json({ error: 'This voucher is only valid for purchases from livestream' });
+    }
 
     let discountAmount = 0;
     let freeShipping = false;
@@ -690,6 +800,9 @@ app.post('/api/vouchers/apply', protect, async (req: any, res: Response) => {
     res.json({
       code: voucher.code,
       type: voucher.type,
+      discountType: voucher.discountType,
+      discountValue: voucher.discountValue,
+      maxDiscount: voucher.maxDiscount,
       discountAmount: Math.round(discountAmount * 100) / 100,
       freeShipping,
       finalTotal: Math.round((orderTotal - discountAmount) * 100) / 100
@@ -714,3 +827,6 @@ Sentry.setupExpressErrorHandler(app);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`[Server] Listening on port ${PORT}`));
+
+// Touch to reload: 1780660101038
+

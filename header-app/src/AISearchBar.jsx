@@ -11,7 +11,7 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-
 async function callGemini(userQuery, products) {
   const productList = products.map(p => `- ${p.name} ($${p.price}): ${p.description || 'No description'}`).join('\n');
   
-  const prompt = `You are a smart shopping assistant for Stuffy Store, a tech retail platform.
+  const prompt = `You are a smart shopping assistant for Stuffy Market, a tech retail platform.
 The customer is looking for: "${userQuery}"
 
 Available products in the store:

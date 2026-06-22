@@ -9,6 +9,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
   const { t } = useI18nStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("stripe"); // "stripe" or "vietqr"
   
   // Form State
   const [shipping, setShipping] = useState({
@@ -38,28 +39,33 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!payment.name || !payment.cardNumber || !payment.expiry || !payment.cvc) {
-      alert(t('fill_payment_alert'));
-      return;
-    }
-    
     setLoading(true);
     try {
-      const idempotencyKey = 'idemp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-      const res = await fetch(`${API_BASE}/api/payments/pay`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-idempotency-key": idempotencyKey
-        },
-        body: JSON.stringify({ amount: total, currency: 'usd' })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Payment initiation failed");
+      if (paymentMethod === "stripe") {
+        if (!payment.name || !payment.cardNumber || !payment.expiry || !payment.cvc) {
+          alert(t('fill_payment_alert'));
+          setLoading(false);
+          return;
+        }
+        
+        const idempotencyKey = 'idemp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        const res = await fetch(`${API_BASE}/api/payments/pay`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-idempotency-key": idempotencyKey
+          },
+          body: JSON.stringify({ amount: total, currency: 'usd' })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Payment initiation failed");
+        }
+        
+        await onCheckout(shipping, 'Credit Card (Stripe Mock)');
+      } else {
+        await onCheckout(shipping, 'VietQR');
       }
-      
-      await onCheckout(shipping);
     } catch (err) {
       alert("Lỗi thanh toán: " + err.message);
     } finally {
@@ -108,6 +114,12 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
                 <span style={{ fontWeight: '600' }}>-${breakdown.platformDiscount.toFixed(2)}</span>
               </div>
             )}
+            {breakdown.shippingDiscount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a' }}>
+                <span>{t('shipping_discount') || 'Shipping Discount'}:</span>
+                <span style={{ fontWeight: '600' }}>-${breakdown.shippingDiscount.toFixed(2)}</span>
+              </div>
+            )}
             {breakdown.coinsDiscount > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a' }}>
                 <span>{t('coins_discount')}:</span>
@@ -115,7 +127,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              <span>{t('shipping')}:</span>
+              <span>{t('shipping')}</span>
               <span style={{ fontWeight: '600', color: breakdown.shipping === 0 ? '#16a34a' : 'var(--text-main)' }}>
                 {breakdown.shipping === 0 ? t('free') : `$${breakdown.shipping.toFixed(2)}`}
               </span>
@@ -159,37 +171,95 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
           </form>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', color: '#b91c1c', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>💳</span>
-              <span>{t('test_mode_notice')}</span>
-            </div>
-
-            <label style={labelStyle}>{t('name_on_card')}</label>
-            <input type="text" placeholder="John Doe" value={payment.name} onChange={(e) => setPayment({...payment, name: e.target.value})} style={inputStyle} required />
-
-            <label style={labelStyle}>{t('card_number')}</label>
-            <div style={{ position: 'relative' }}>
-              <input type="text" placeholder="4242 4242 4242 4242" maxLength={19} value={payment.cardNumber} onChange={(e) => setPayment({...payment, cardNumber: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim()})} style={{...inputStyle, paddingLeft: '40px', fontFamily: 'monospace', fontSize: '1.1rem'}} required />
-              <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" style={{ position: 'absolute', top: '15px', left: '12px', height: '12px', opacity: 0.5 }} />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              <div>
-                <label style={labelStyle}>{t('expiry')}</label>
-                <input type="text" placeholder="12/26" maxLength={5} value={payment.expiry} onChange={(e) => setPayment({...payment, expiry: e.target.value})} style={inputStyle} required />
+            {/* Payment Method Selector */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>{t('select_payment_method')}</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+                <div 
+                  onClick={() => setPaymentMethod("stripe")}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '2px solid',
+                    borderColor: paymentMethod === 'stripe' ? 'var(--primary-color)' : 'var(--border-light)',
+                    background: paymentMethod === 'stripe' ? 'rgba(99,102,241,0.05)' : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span style={{ fontSize: '1.4rem' }}>💳</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: paymentMethod === 'stripe' ? 'var(--primary-color)' : 'var(--text-main)' }}>{t('credit_card')}</span>
+                </div>
+                <div 
+                  onClick={() => setPaymentMethod("vietqr")}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '2px solid',
+                    borderColor: paymentMethod === 'vietqr' ? 'var(--primary-color)' : 'var(--border-light)',
+                    background: paymentMethod === 'vietqr' ? 'rgba(99,102,241,0.05)' : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span style={{ fontSize: '1.4rem' }}>📱</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: paymentMethod === 'vietqr' ? 'var(--primary-color)' : 'var(--text-main)' }}>{t('vietqr')}</span>
+                </div>
               </div>
-              <div>
-                <label style={labelStyle}>{t('cvc')}</label>
-                <input type="text" placeholder="123" maxLength={4} value={payment.cvc} onChange={(e) => setPayment({...payment, cvc: e.target.value})} style={inputStyle} required />
-              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            {paymentMethod === 'stripe' ? (
+              <>
+                <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', color: '#b91c1c', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>💳</span>
+                  <span>{t('test_mode_notice')}</span>
+                </div>
+
+                <label style={labelStyle}>{t('name_on_card')}</label>
+                <input type="text" placeholder="John Doe" value={payment.name} onChange={(e) => setPayment({...payment, name: e.target.value})} style={inputStyle} required />
+
+                <label style={labelStyle}>{t('card_number')}</label>
+                <div style={{ position: 'relative' }}>
+                  <input type="text" placeholder="4242 4242 4242 4242" maxLength={19} value={payment.cardNumber} onChange={(e) => setPayment({...payment, cardNumber: e.target.value.replace(/\D/g, '').replace(/(.{4})/g, '$1 ').trim()})} style={{...inputStyle, paddingLeft: '40px', fontFamily: 'monospace', fontSize: '1.1rem'}} required />
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" style={{ position: 'absolute', top: '15px', left: '12px', height: '12px', opacity: 0.5 }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <label style={labelStyle}>{t('expiry')}</label>
+                    <input type="text" placeholder="12/26" maxLength={5} value={payment.expiry} onChange={(e) => setPayment({...payment, expiry: e.target.value})} style={inputStyle} required />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{t('cvc')}</label>
+                    <input type="text" placeholder="123" maxLength={4} value={payment.cvc} onChange={(e) => setPayment({...payment, cvc: e.target.value})} style={inputStyle} required />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #86efac', display: 'flex', alignItems: 'flex-start', gap: '12px', textAlign: 'left' }}>
+                <span style={{ fontSize: '1.5rem', lineHeight: '1' }}>⚡</span>
+                <span style={{ fontSize: '0.85rem', color: '#15803d', fontWeight: '600', lineHeight: '1.5' }}>
+                  Hệ thống sẽ tạo đơn hàng và thiết lập liên kết VietQR (PayOS) để bạn quét mã thanh toán từ ứng dụng ngân hàng của bạn.
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button type="button" onClick={() => setStep(1)} style={{ padding: '14px 20px', background: '#f1f5f9', border: '1px solid var(--border-light)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-muted)' }}>
                 {t('back')}
               </button>
               <button type="submit" disabled={loading} style={{ flex: 1, padding: '14px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-                {loading ? t('processing_stripe') : t('pay_amount', { amount: total.toFixed(2) })}
+                {loading 
+                  ? (paymentMethod === 'stripe' ? t('processing_stripe') : t('generating_qr')) 
+                  : (paymentMethod === 'stripe' ? t('pay_amount', { amount: total.toFixed(2) }) : t('pay_vietqr'))}
               </button>
             </div>
           </form>

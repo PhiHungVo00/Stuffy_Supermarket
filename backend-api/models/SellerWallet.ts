@@ -5,6 +5,11 @@ export interface IWalletTransaction {
   type: 'escrow_payout' | 'withdrawal' | 'refund' | 'adjustment';
   description: string;
   orderId?: mongoose.Types.ObjectId;
+  status?: 'pending' | 'success' | 'failed';
+  bankName?: string;
+  accountNumber?: string;
+  recipientName?: string;
+  referenceId?: string;
   createdAt: Date;
 }
 
@@ -20,7 +25,12 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>({
   amount: { type: Number, required: true },
   type: { type: String, enum: ['escrow_payout', 'withdrawal', 'refund', 'adjustment'], required: true },
   description: { type: String, default: '' },
-  orderId: { type: Schema.Types.ObjectId, ref: 'Order' }
+  orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
+  status: { type: String, enum: ['pending', 'success', 'failed'], default: 'success' },
+  bankName: { type: String },
+  accountNumber: { type: String },
+  recipientName: { type: String },
+  referenceId: { type: String }
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 const SellerWalletSchema = new Schema<ISellerWallet>({

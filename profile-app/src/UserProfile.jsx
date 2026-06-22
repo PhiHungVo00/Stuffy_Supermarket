@@ -291,6 +291,21 @@ export default function UserProfile() {
                           )}
                         </div>
 
+                        {/* Estimated Delivery Date Display */}
+                        <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                          <span style={{ fontSize: '1.1rem' }}>📅</span>
+                          <span style={{ fontWeight: '700' }}>
+                            Ngày giao dự kiến: <span style={{ color: '#4f46e5' }}>{order.estimatedDeliveryDate 
+                              ? new Date(order.estimatedDeliveryDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                              : (() => {
+                                  const date = new Date(order.createdAt || Date.now());
+                                  date.setDate(date.getDate() + 3);
+                                  return date.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                                })()
+                            }</span>
+                          </span>
+                        </div>
+
                         {order.shippingHistory && order.shippingHistory.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px', paddingLeft: '12px', borderLeft: '2px solid var(--primary-color)', position: 'relative' }}>
                             {order.shippingHistory.map((log, idx) => (

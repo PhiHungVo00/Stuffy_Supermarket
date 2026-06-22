@@ -11,6 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [role, setRole] = useState('user');
   
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function Login() {
 
     const res = isLogin 
       ? await login(email, password)
-      : await register(name, email, password);
+      : await register(name, email, password, role);
 
     if (res.success) {
       navigate('/');
@@ -55,6 +56,53 @@ export default function Login() {
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: '0.9rem' }}>{t('password')}</label>
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%', padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--border-light)', outline: 'none' }} />
         </div>
+
+        {!isLogin && (
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>{t('role') || 'Vai trò'}</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setRole('user')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: role === 'user' ? '2px solid var(--primary-color)' : '1px solid var(--border-light)',
+                  background: role === 'user' ? 'rgba(99, 102, 241, 0.1)' : 'white',
+                  color: role === 'user' ? 'var(--primary-color)' : 'var(--text-main)',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                🛒 {t('buyer') || 'Người mua'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('seller')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: role === 'seller' ? '2px solid var(--primary-color)' : '1px solid var(--border-light)',
+                  background: role === 'seller' ? 'rgba(99, 102, 241, 0.1)' : 'white',
+                  color: role === 'seller' ? 'var(--primary-color)' : 'var(--text-main)',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                🏪 {t('seller') || 'Người bán'}
+              </button>
+            </div>
+            {role === 'seller' && (
+              <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                ✨ Cửa hàng của bạn sẽ được tự động kích hoạt ngay!
+              </div>
+            )}
+          </div>
+        )}
 
         <button type="submit" style={{ width: '100%', padding: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px', transition: 'all 0.2s' }}>
           {isLogin ? t('login') : t('register')}

@@ -6,6 +6,9 @@ export interface IChatMessage extends Document {
   shop?: mongoose.Types.ObjectId;
   message: string;
   isRead: boolean;
+  attachmentType?: string; // 'text' | 'product' | 'order'
+  attachedProduct?: mongoose.Types.ObjectId;
+  attachedOrder?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,7 +18,10 @@ const ChatMessageSchema = new Schema<IChatMessage>({
   recipient: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   shop: { type: Schema.Types.ObjectId, ref: 'Shop' },
   message: { type: String, required: true },
-  isRead: { type: Boolean, default: false }
+  isRead: { type: Boolean, default: false },
+  attachmentType: { type: String, enum: ['text', 'product', 'order'], default: 'text' },
+  attachedProduct: { type: Schema.Types.ObjectId, ref: 'Product' },
+  attachedOrder: { type: Schema.Types.ObjectId, ref: 'Order' }
 }, { timestamps: true });
 
 // Create indexes for efficient conversation fetching

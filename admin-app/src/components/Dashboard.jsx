@@ -34,6 +34,7 @@ export default function Dashboard({ products }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('admin');
+  const [forecastData, setForecastData] = useState(null);
 
   useEffect(() => {
     const userInfoString = localStorage.getItem('userInfo');
@@ -41,6 +42,7 @@ export default function Dashboard({ products }) {
       const { token, role } = JSON.parse(userInfoString);
       setUserRole(role || 'admin');
 
+      // Fetch normal orders
       fetch(`${API_BASE}/api/orders?pageSize=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -50,17 +52,28 @@ export default function Dashboard({ products }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+      // Fetch AI analytics forecast
+      fetch(`${API_BASE}/api/analytics/forecast`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          setForecastData(data);
+        }
+      })
+      .catch(() => {});
     } else {
       setLoading(false);
     }
   }, []);
 
-  // Compute Revenue by Day of the week
+  // Compute normal weekly stats
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   
   const revenueByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-  
   orders.forEach(order => {
     if (order.status !== 'Canceled') {
       const date = new Date(order.createdAt);
@@ -71,25 +84,77 @@ export default function Dashboard({ products }) {
     }
   });
 
-  const realRevenue = labels.map(day => Math.round(revenueByDay[day] * 100) / 100);
-  const totalRevenue = realRevenue.reduce((sum, val) => sum + val, 0);
+  // Setup main trend chart data (incorporating historical and forecast if available)
+  let salesData = null;
 
-  // If there are no real orders, show fallback mock data scaled for the user's role
-  const mockRevenue = userRole === 'seller' 
-    ? [200, 450, 600, 1100, 500, 800, 1200] 
-    : [1200, 1900, 3000, 5000, 2300, 3400, 4500];
+  if (forecastData && forecastData.historical && forecastData.forecast) {
+    // Show last 7 days of history + 7 days of forecast
+    const historyLast7 = forecastData.historical.slice(-7);
+    const forecast = forecastData.forecast;
 
-  const salesData = {
-    labels,
-    datasets: [{
-      label: 'Revenue ($)',
-      data: totalRevenue > 0 ? realRevenue : mockRevenue,
-      borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
-      backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-      fill: true,
-      tension: 0.4,
-    }]
-  };
+    const combinedLabels = [
+      ...historyLast7.map(h => {
+        const parts = h.date.split('-');
+        return `${parts[1]}/${parts[2]}`; // MM/DD
+      }),
+      ...forecast.map(f => {
+        const parts = f.date.split('-');
+        return `${parts[1]}/${parts[2]} (AI)`; // MM/DD (AI)
+      })
+    ];
+
+    const historyPoints = [...historyLast7.map(h => h.revenue), ...Array(forecast.length).fill(null)];
+    
+    // Connect forecast line starting from the last historical point
+    const lastHistoryVal = historyLast7[historyLast7.length - 1].revenue;
+    const forecastPoints = [
+      ...Array(historyLast7.length - 1).fill(null),
+      lastHistoryVal,
+      ...forecast.map(f => f.revenue)
+    ];
+
+    salesData = {
+      labels: combinedLabels,
+      datasets: [
+        {
+          label: 'Historical Revenue ($)',
+          data: historyPoints,
+          borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
+          backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+          fill: true,
+          tension: 0.4,
+        },
+        {
+          label: 'AI Forecasted Revenue ($)',
+          data: forecastPoints,
+          borderColor: 'rgb(245, 158, 11)',
+          borderDash: [5, 5],
+          backgroundColor: 'rgba(245, 158, 11, 0.05)',
+          fill: false,
+          tension: 0.4,
+        }
+      ]
+    };
+  } else {
+    // Fallback if forecast API fails/not loaded
+    const realRevenue = labels.map(day => Math.round(revenueByDay[day] * 100) / 100);
+    const totalRevenue = realRevenue.reduce((sum, val) => sum + val, 0);
+    const mockRevenue = userRole === 'seller' 
+      ? [200, 450, 600, 1100, 500, 800, 1200] 
+      : [1200, 1900, 3000, 5000, 2300, 3400, 4500];
+
+    salesData = {
+      labels,
+      datasets: [{
+        label: 'Revenue ($)',
+        data: totalRevenue > 0 ? realRevenue : mockRevenue,
+        borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
+        backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+        fill: true,
+        tension: 0.4,
+      }]
+    };
+  }
 
   const categoryCount = products.reduce((acc, p) => {
     acc[p.category] = (acc[p.category] || 0) + 1;
@@ -107,7 +172,7 @@ export default function Dashboard({ products }) {
     }]
   };
 
-  // Mocking funnel sessions (adjusted slightly for seller vs platform admin)
+  // Mocking funnel sessions
   const behaviourData = {
     labels: ['Home View', 'Search', 'Add to Cart', 'AR Experience', 'Checkout'],
     datasets: [{
@@ -122,7 +187,7 @@ export default function Dashboard({ products }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 8 } },
     },
     scales: {
       x: { grid: { display: false } },
@@ -134,13 +199,13 @@ export default function Dashboard({ products }) {
     <div style={{ marginBottom: '40px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
         
-        {/* Sales Chart */}
+        {/* Sales Chart with AI Forecast */}
         <div style={{ 
           background: 'white', padding: '24px', borderRadius: '18px', border: '1px solid var(--border-light)',
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
           <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {userRole === 'seller' ? 'Shop Revenue Trend' : 'Platform Revenue Trend'}
+            {userRole === 'seller' ? 'Shop AI Revenue Forecast & Trend' : 'Platform Revenue Trend'}
           </h4>
           <div style={{ height: '220px' }}>
             <Line data={salesData} options={chartOptions} />
@@ -169,7 +234,7 @@ export default function Dashboard({ products }) {
             {userRole === 'seller' ? 'Shop Inventory Split' : 'Platform Inventory Split'}
           </h4>
           <div style={{ height: '220px', display: 'flex', justifyContent: 'center' }}>
-            <Doughnut data={categoryData} options={{ ...chartOptions, maintainAspectRatio: false }} />
+            <Doughnut data={categoryData} options={{ ...chartOptions, maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
           </div>
         </div>
 

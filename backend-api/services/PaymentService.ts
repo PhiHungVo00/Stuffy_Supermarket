@@ -29,15 +29,28 @@ export class PaymentService {
     await trace.save();
 
     try {
-      // 3. Requesting Stripe with their native idempotencyKey support as well
-      const paymentIntent = await stripe.paymentIntents.create(
-        {
-          amount: Math.round(amount * 100), // Stripe expects cents
-          currency,
-          metadata: { tenantId },
-        },
-        { idempotencyKey } // Stripe-level safety
-      );
+      let paymentIntent;
+      const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock_stuffy_supermarket';
+      
+      if (stripeKey && !stripeKey.startsWith('sk_test_mock')) {
+        // 3. Requesting Stripe with their native idempotencyKey support as well
+        paymentIntent = await stripe.paymentIntents.create(
+          {
+            amount: Math.round(amount * 100), // Stripe expects cents
+            currency,
+            metadata: { tenantId },
+          },
+          { idempotencyKey } // Stripe-level safety
+        );
+      } else {
+        // Mock Stripe payment intent for local dev
+        console.log(`[Payment] Stripe Secret Key is mock (${stripeKey}). Processing local mock transaction.`);
+        paymentIntent = {
+          client_secret: `mock_secret_stuffy_${Math.random().toString(36).substr(2, 9)}`,
+          id: `pi_mock_stuffy_${Math.random().toString(36).substr(2, 9)}`,
+          amount: Math.round(amount * 100),
+        };
+      }
 
       // 4. Update trace to 'completed' and store the result
       trace.status = 'completed';

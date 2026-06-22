@@ -12,6 +12,8 @@ export interface IShop extends Document {
   decorationConfig?: any;
   isLive?: boolean;
   activeStreamUrl?: string;
+  aiChatbotEnabled?: boolean;
+  aiChatbotPrompt?: string;
 }
 
 const shopSchema = new Schema<IShop>({
@@ -25,7 +27,9 @@ const shopSchema = new Schema<IShop>({
   district: { type: String, default: 'Quận Thủ Đức' },
   decorationConfig: { type: Schema.Types.Mixed, default: null },
   isLive: { type: Boolean, default: false },
-  activeStreamUrl: { type: String, default: '' }
+  activeStreamUrl: { type: String, default: '' },
+  aiChatbotEnabled: { type: Boolean, default: false },
+  aiChatbotPrompt: { type: String, default: '' }
 }, { timestamps: true });
 
 export default mongoose.model<IShop>('Shop', shopSchema);

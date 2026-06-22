@@ -6,7 +6,7 @@ async function runCoinsAndLogisticsTests() {
   
   try {
     console.log('Connecting to database...');
-    await mongoose.connect('mongodb://localhost:27017/stuffy_test_suite');
+    await mongoose.connect('mongodb://localhost:27017/stuffy_db');
     
     // Clean up test collections for a clean run
     try { await mongoose.connection.db.collection('users').deleteMany({ email: { $regex: 'coins_' } }); } catch (e) {}

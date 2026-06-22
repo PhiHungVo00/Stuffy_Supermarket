@@ -10,7 +10,7 @@ services:
     depends_on:
       - mongodb-test
     command: >
-      sh -c "npm install && npm run build && npm run dev & sleep 5 && node test-shopee-ev2.js"
+      sh -c "npm install && npm run build && npm run dev & sleep 5 && npx ts-node test-shopee-parity-v8.ts"
 
   mongodb-test:
     image: mongo:latest

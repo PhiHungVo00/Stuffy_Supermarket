@@ -82,7 +82,7 @@ export default function Storefront() {
       <div className="ds-glass-card" style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "white", padding: "30px", borderRadius: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "20px", boxShadow: "var(--shadow-lg)" }}>
         <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
           {shop.logo ? (
-            <img src={shop.logo} style={{ width: "80px", height: "80px", borderRadius: "50%", border: "3px solid rgba(255,255,255,0.2)", objectFit: "cover" }} alt={shop.name} />
+            <img src={shop.logo} style={{ width: "80px", height: "80px", borderRadius: "50%", border: "3px solid rgba(255,255,255,0.2)", objectFit: "cover" }} alt={shop.name} decoding="async" />
           ) : (
             <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontWeight: "bold", fontSize: "2rem", border: "3px solid rgba(255,255,255,0.2)" }}>
               {shop.name.charAt(0).toUpperCase()}
@@ -135,7 +135,8 @@ export default function Storefront() {
                   <img 
                     src={widget.images[activeSlide[widget.id] || 0]} 
                     style={{ width: "100%", height: "100%", objectFit: "cover", transition: "all 0.5s ease-in-out" }} 
-                    alt="" 
+                    alt={widget.title || "Storefront Banner"} 
+                    decoding="async"
                   />
                   {widget.images.length > 1 && (
                     <>
@@ -145,6 +146,7 @@ export default function Storefront() {
                           const nextIdx = currentIdx === 0 ? widget.images.length - 1 : currentIdx - 1;
                           setActiveSlide(prev => ({ ...prev, [widget.id]: nextIdx }));
                         }}
+                        aria-label="Previous slide"
                         style={{ position: "absolute", left: "15px", top: "50%", transform: "translateY(-50%)", width: "40px", height: "40px", borderRadius: "50%", background: "rgba(0,0,0,0.4)", border: "none", color: "white", cursor: "pointer", fontWeight: "bold" }}
                       >
                         ‹
@@ -155,6 +157,7 @@ export default function Storefront() {
                           const nextIdx = (currentIdx + 1) % widget.images.length;
                           setActiveSlide(prev => ({ ...prev, [widget.id]: nextIdx }));
                         }}
+                        aria-label="Next slide"
                         style={{ position: "absolute", right: "15px", top: "50%", transform: "translateY(-50%)", width: "40px", height: "40px", borderRadius: "50%", background: "rgba(0,0,0,0.4)", border: "none", color: "white", cursor: "pointer", fontWeight: "bold" }}
                       >
                         ›
@@ -176,7 +179,7 @@ export default function Storefront() {
                       return (
                         <div key={pid} className="ds-glass-card" style={{ display: "flex", flexDirection: "column", padding: "15px", border: "1px solid #f1f5f9", background: "#f8fafc", borderRadius: "16px", boxShadow: "none" }}>
                           <div style={{ background: "white", borderRadius: "10px", padding: "10px", display: "flex", justifyContent: "center", marginBottom: "12px", cursor: "pointer" }} onClick={() => window.location.href = `/product/${prod._id || prod.id}`}>
-                            <img src={getOptimizedImage(prod.image, 200, 80)} style={{ width: "120px", height: "120px", objectFit: "contain" }} alt="" />
+                            <img src={getOptimizedImage(prod.image, 200, 80)} style={{ width: "120px", height: "120px", objectFit: "contain" }} alt={prod.name} loading="lazy" decoding="async" />
                           </div>
                           <h4 style={{ margin: "0 0 6px 0", fontSize: "0.95rem", fontWeight: "700", color: "var(--text-main)", minHeight: "40px", cursor: "pointer" }} onClick={() => window.location.href = `/product/${prod._id || prod.id}`}>{prod.name}</h4>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
@@ -188,6 +191,7 @@ export default function Storefront() {
                                   detail: { message: t('added_to_cart_toast', { name: prod.name }), type: 'success' } 
                                 }));
                               }} 
+                              aria-label="Add to cart"
                               style={{ border: "none", background: "var(--primary-color)", color: "white", width: "30px", height: "30px", borderRadius: "50%", display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", fontWeight: "bold" }}
                             >
                               +
@@ -221,7 +225,7 @@ export default function Storefront() {
               {products.map((prod) => (
                 <div key={prod._id || prod.id} className="ds-glass-card" style={{ display: "flex", flexDirection: "column", padding: "15px", border: "1px solid #f1f5f9", borderRadius: "16px", boxShadow: "none" }}>
                   <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "12px", display: "flex", justifyContent: "center", marginBottom: "15px", cursor: "pointer" }} onClick={() => window.location.href = `/product/${prod._id || prod.id}`}>
-                    <img src={getOptimizedImage(prod.image, 240, 80)} style={{ width: "140px", height: "140px", objectFit: "contain", mixBlendMode: "multiply" }} alt="" />
+                    <img src={getOptimizedImage(prod.image, 240, 80)} style={{ width: "140px", height: "140px", objectFit: "contain", mixBlendMode: "multiply" }} alt={prod.name} loading="lazy" decoding="async" />
                   </div>
                   <h4 style={{ margin: "0 0 8px 0", fontSize: "1.05rem", fontWeight: "700", color: "var(--text-main)", minHeight: "45px", cursor: "pointer" }} onClick={() => window.location.href = `/product/${prod._id || prod.id}`}>{prod.name}</h4>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>

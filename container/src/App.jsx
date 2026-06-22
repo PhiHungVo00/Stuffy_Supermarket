@@ -50,34 +50,49 @@ const Navbar = () => {
     }
   }, [user]);
 
+  const navLinkStyle = (isActive, activeColor) => ({
+    textDecoration: 'none',
+    fontWeight: isActive ? '800' : '600',
+    color: isActive ? activeColor : '#475569',
+    borderBottom: isActive ? `3px solid ${activeColor}` : '3px solid transparent',
+    padding: '12px 20px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '48px',
+    minWidth: '80px',
+    marginBottom: '-1px',
+    transition: 'all 0.2s'
+  });
+
   return (
     <nav style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '15px 10px 0 10px', borderBottom: '1px solid var(--border-light)', background: 'white', position: 'relative', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <NavLink to="/" end style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
+        <NavLink to="/" end style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
           {t('products')}
         </NavLink>
         <NavLink 
           to="/cart" 
           onMouseEnter={() => prefetchRemote('cart', REMOTE_MAP.cart)}
-          style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? 'var(--primary-color)' : 'var(--text-muted)', borderBottom: isActive ? '3px solid var(--primary-color)' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
+          style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
           {t('cart')}
         </NavLink>
         <NavLink 
           to="/wishlist" 
-          style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? '#ec4899' : 'var(--text-muted)', borderBottom: isActive ? '3px solid #ec4899' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
+          style={({isActive}) => navLinkStyle(isActive, '#be185d')}>
           {t('wishlist')}
         </NavLink>
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'seller') && (
           <NavLink 
             to="/admin" 
             onMouseEnter={() => prefetchRemote('admin', REMOTE_MAP.admin)}
-            style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? '#ef4444' : 'var(--text-muted)', borderBottom: isActive ? '3px solid #ef4444' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
-            {t('admin')}
+            style={({isActive}) => navLinkStyle(isActive, '#b91c1c')}>
+            {user.role === 'seller' ? 'Kênh Người Bán' : t('admin')}
           </NavLink>
         )}
         <NavLink 
           to="/live" 
-          style={({isActive}) => ({ textDecoration: 'none', fontWeight: isActive ? '800' : '600', color: isActive ? '#ea580c' : 'var(--text-muted)', borderBottom: isActive ? '3px solid #ea580c' : '3px solid transparent', paddingBottom: '20px', marginBottom: '-1px', transition: 'all 0.2s' })}>
+          style={({isActive}) => navLinkStyle(isActive, '#c2410c')}>
           🎥 Shopee Live
         </NavLink>
       </div>
@@ -93,7 +108,7 @@ const Navbar = () => {
             <button onClick={logout} style={{ padding: '6px 12px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>{t('logout')}</button>
           </div>
         ) : (
-          <NavLink to="/login" style={{ padding: '8px 16px', background: 'var(--primary-color)', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 'bold' }}>{t('login')}</NavLink>
+          <NavLink to="/login" style={{ padding: '8px 16px', background: 'var(--primary-dark)', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', minHeight: '36px' }}>{t('login')}</NavLink>
         )}
       </div>
     </nav>
@@ -103,7 +118,7 @@ const Navbar = () => {
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
-  return user && user.role === 'admin' ? children : <Navigate to="/login" />;
+  return user && (user.role === 'admin' || user.role === 'seller') ? children : <Navigate to="/login" />;
 };
 
 export default function App() {
@@ -133,15 +148,15 @@ export default function App() {
           <Routes>
             <Route path="/" element={
               <>
-                <div style={{ background: 'var(--primary-color)', color: 'white', padding: '30px 25px', borderRadius: 'var(--radius-lg)', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)', flexWrap: 'wrap', gap: '20px' }}>
+                <div style={{ background: 'var(--primary-dark)', color: 'white', padding: '30px 25px', borderRadius: 'var(--radius-lg)', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)', flexWrap: 'wrap', gap: '20px' }}>
                 <div style={{ minWidth: '250px', flex: 1 }}>
-                  <span className="ds-badge" style={{ background: 'rgba(255,255,255,0.15)', color: 'white', marginBottom: '12px', display: 'inline-block', fontSize: '0.8rem', letterSpacing: '0.5px' }}>Live · {t('live_sync')}</span>
-                  <h2 style={{ fontSize: '2.6rem', margin: '0 0 12px 0', fontWeight: '800', lineHeight: 1.15 }}>Stuffy<span style={{ color: 'var(--accent-color)' }}> Store</span></h2>
-                  <p style={{ margin: 0, opacity: 0.75, fontSize: '1.05rem', maxWidth: '460px', lineHeight: 1.6 }}>{t('desc_banner')}</p>
+                  <span className="ds-badge" style={{ background: 'white', color: 'var(--primary-dark)', marginBottom: '12px', display: 'inline-block', fontSize: '0.8rem', letterSpacing: '0.5px', fontWeight: 'bold' }}>Live · {t('live_sync')}</span>
+                  <h2 style={{ fontSize: '2.6rem', margin: '0 0 12px 0', fontWeight: '800', lineHeight: 1.15 }}>Stuffy<span style={{ color: '#ffd700' }}> Market</span></h2>
+                  <p style={{ margin: 0, color: '#ffffff', fontSize: '1.05rem', maxWidth: '460px', lineHeight: 1.6 }}>{t('desc_banner')}</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('mfe_modules')}</span>
-                  <span style={{ background: 'rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('platform_tech')}</span>
+                  <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('mfe_modules')}</span>
+                  <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('platform_tech')}</span>
                 </div>
               </div>
                 <ProtectedModule moduleName="Flash Sale"><FlashSaleBanner /></ProtectedModule>
@@ -155,7 +170,7 @@ export default function App() {
             <Route path="/profile" element={<ProtectedModule moduleName="Profile"><UserProfile /></ProtectedModule>} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminRoute><ProtectedModule moduleName="Admin"><Admin /></ProtectedModule></AdminRoute>} />
-            <Route path="/scanner/:sessionCode" element={<MobileScanner />} />
+            <Route path="/scanner/:sessionCode" element={<ProtectedModule moduleName="Scanner"><MobileScanner /></ProtectedModule>} />
             <Route path="/store" element={<ProtectedModule moduleName="Storefront"><Storefront /></ProtectedModule>} />
             <Route path="/live" element={<ProtectedModule moduleName="Shopee Live"><LiveStream /></ProtectedModule>} />
           </Routes>
