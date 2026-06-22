@@ -19,6 +19,14 @@ export const typeDefs = gql`
     image: String
   }
 
+  type Shop {
+    id: ID!
+    name: String!
+    logo: String
+    description: String
+    rating: Float
+  }
+
   type Product @key(fields: "id") {
     id: ID!
     name: String!
@@ -31,6 +39,7 @@ export const typeDefs = gql`
     numReviews: Int
     countInStock: Int
     variants: [ProductVariant]
+    shop: Shop
   }
 
   type Query {
@@ -48,6 +57,9 @@ export const typeDefs = gql`
 
 export const resolvers = {
   Product: {
+    id: (parent: any) => parent._id || parent.id,
+  },
+  Shop: {
     id: (parent: any) => parent._id || parent.id,
   },
   Query: {
@@ -93,6 +105,7 @@ export const resolvers = {
       const count = await Product.countDocuments(query);
       const products = await Product.find(query)
         .populate('variants')
+        .populate('shop')
         .sort(sortOption)
         .limit(pageSize)
         .skip(pageSize * (pageNumber - 1));
@@ -114,7 +127,7 @@ export const resolvers = {
       const cached = await getCachedData<any>(cacheKey);
       if (cached) return cached;
       
-      const product = await Product.findOne({ _id: id, tenantId }).populate('variants');
+      const product = await Product.findOne({ _id: id, tenantId }).populate('variants').populate('shop');
       if (product) {
         await cacheData(cacheKey, product, 3600);
       }

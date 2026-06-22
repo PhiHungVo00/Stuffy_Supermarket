@@ -128,6 +128,7 @@ export default function OrderManager({ apiBase, getToken }) {
                 <select
                   value={order.status}
                   onChange={(e) => updateStatus(order._id, e.target.value)}
+                  aria-label="Cập nhật trạng thái đơn hàng"
                   style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}
                 >
                   {STATUSES.filter(s => s !== 'All').map(s => (

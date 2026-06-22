@@ -5,10 +5,25 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 dotenv.config();
 const app = express();
 const INTERNAL_SECRET = process.env.STUFFY_INTERNAL_SECRET || 'stuffy_secret_2026';
+
+// Initialize Google Gemini AI
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+let genAI: GoogleGenerativeAI | null = null;
+if (GEMINI_API_KEY && GEMINI_API_KEY !== 'mock_gemini_key') {
+    try {
+        genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        console.log('[Gemini] Initialized successfully with API Key.');
+    } catch (err: any) {
+        console.error('[Gemini] Initialization failed:', err.message);
+    }
+} else {
+    console.log('[Gemini] Running in FALLBACK mode. No valid GEMINI_API_KEY found.');
+}
 
 /**
  * 🛡️ ZERO TRUST MIDDLEWARE
@@ -88,6 +103,40 @@ async function trackInteraction(userId: string, productId: string) {
     }
 }
 
+// Helper to query Gemini AI for product suggestions
+async function getGeminiRecommendations(productId: string, redisCorrelations: { id: string; score: number }[]): Promise<{ id: string; score: number }[]> {
+    if (!genAI) {
+        throw new Error('Gemini API client not initialized');
+    }
+    
+    const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: 'application/json' }
+    });
+    
+    const prompt = `
+    You are a machine learning product recommendation engine for Stuffy Supermarket.
+    Given a target product ID: "${productId}"
+    And a list of correlated products viewed alongside it from user clickstream data:
+    ${JSON.stringify(redisCorrelations, null, 2)}
+    
+    Task:
+    Analyze the relationships and re-score or refine the recommendations to deliver the most relevant experience.
+    Return the result strictly in this JSON format:
+    {
+      "suggested": [
+        { "id": "product_id", "score": number }
+      ]
+    }
+    Make sure to only suggest items from the correlated list or related IDs.
+    `;
+    
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const parsed = JSON.parse(text);
+    return parsed.suggested || [];
+}
+
 // 2. RABBITMQ CONSUMER (Real-time Event Processing)
 async function startConsumer() {
     try {
@@ -127,14 +176,29 @@ app.get('/api/recommendations/:id', async (req, res) => {
     try {
         // Get Top 4 correlated products from Redis Sorted Set
         const recommendations = await redis.zRangeWithScores(`correlations:${productId}`, 0, 3, { REV: true });
+        const redisCorrelations = recommendations.map(r => ({ id: r.value, score: r.score }));
+
+        if (genAI) {
+            try {
+                console.log(`[Recom] Generating AI recommendations using Gemini for Product ${productId}`);
+                const aiSuggestions = await getGeminiRecommendations(productId, redisCorrelations);
+                return res.json({
+                    productId,
+                    suggested: aiSuggestions,
+                    engine: 'Gemini AI'
+                });
+            } catch (aiErr: any) {
+                console.warn('[Recom] Gemini AI recommendation failed. Falling back to Redis collaborative filtering:', aiErr.message);
+            }
+        }
         
-        // In a real app, we'd fetch names/images from DB here or provide IDs
         res.json({
             productId,
-            suggested: recommendations.map(r => ({ id: r.value, score: r.score }))
+            suggested: redisCorrelations,
+            engine: 'Redis Collaborative Filtering'
         });
     } catch (error: any) {
-        console.error('[Recom] Error getting recommendations from Redis:', error.message);
+        console.error('[Recom] Error getting recommendations:', error.message);
         res.json({
             productId,
             suggested: []

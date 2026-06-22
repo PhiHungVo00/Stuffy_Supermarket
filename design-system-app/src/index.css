@@ -2,8 +2,8 @@
 
 :root {
   /* 🎨 CORE DESIGN TOKENS (Controlled via ThemeConfig) */
-  --primary-color: #6366f1;
-  --primary-dark: #4f46e5;
+  --primary-color: #4f46e5;
+  --primary-dark: #3730a3;
   --secondary-color: #ec4899;
   --accent-color: #38bdf8;
   

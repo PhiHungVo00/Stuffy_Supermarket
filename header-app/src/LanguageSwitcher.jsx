@@ -16,10 +16,11 @@ export default function LanguageSwitcher() {
     }}>
       <button 
         onClick={() => setLang('en')}
+        aria-label="EN - Switch to English"
         style={{
           border: 'none',
           background: lang === 'en' ? 'white' : 'transparent',
-          color: lang === 'en' ? 'var(--primary-color)' : '#94a3b8',
+          color: lang === 'en' ? 'var(--primary-dark)' : '#475569',
           padding: '6px 12px',
           borderRadius: '99px',
           fontSize: '0.75rem',
@@ -33,10 +34,11 @@ export default function LanguageSwitcher() {
       </button>
       <button 
         onClick={() => setLang('vi')}
+        aria-label="VN - Chuyển sang tiếng Việt"
         style={{
           border: 'none',
           background: lang === 'vi' ? 'white' : 'transparent',
-          color: lang === 'vi' ? 'var(--primary-color)' : '#94a3b8',
+          color: lang === 'vi' ? 'var(--primary-dark)' : '#475569',
           padding: '6px 12px',
           borderRadius: '99px',
           fontSize: '0.75rem',

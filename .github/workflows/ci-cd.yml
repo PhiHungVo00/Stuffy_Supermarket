@@ -62,7 +62,7 @@ jobs:
           cd backend-api
           npm run dev &
           sleep 12
-          node test-shopee-ev2.js
+          npx ts-node test-shopee-parity-v8.ts
 
   build-and-push-dockerhub:
     needs: run-tests

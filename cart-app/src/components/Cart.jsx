@@ -13,7 +13,7 @@ const SESSION_CODE = Math.random().toString(36).substring(2, 6).toUpperCase();
 
 const Cart = () => {
   const { t } = useI18nStore();
-  const { cartItems, increaseQuantity, decreaseQuantity, removeFromCart, clearCart, addToCart } = useCartStore();
+  const { cartItems, increaseQuantity, decreaseQuantity, removeFromCart, clearCart, addToCart, loadCartFromServer } = useCartStore();
   const [magicItem, setMagicItem] = useState(null);
   const [showWheel, setShowWheel] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -27,6 +27,7 @@ const Cart = () => {
   const [shopVoucherErrors, setShopVoucherErrors] = useState({}); // { [shopId]: '' }
   
   const [platformVoucher, setPlatformVoucher] = useState(null);
+  const [shippingVoucher, setShippingVoucher] = useState(null);
   const [platformVoucherCode, setPlatformVoucherCode] = useState('');
   const [platformVoucherError, setPlatformVoucherError] = useState('');
   
@@ -42,6 +43,9 @@ const Cart = () => {
   const [redeemCoinsChecked, setRedeemCoinsChecked] = useState(false);
 
   useEffect(() => {
+    if (loadCartFromServer) {
+      loadCartFromServer().catch(console.error);
+    }
     const userInfoString = localStorage.getItem('userInfo');
     if (userInfoString) {
       try {
@@ -87,7 +91,7 @@ const Cart = () => {
       const shopGroupsForShipping = {};
       selectedItems.forEach(item => {
         const shop = item.shop || { _id: 'default_shop', name: 'Stuffy Supermarket' };
-        const shopId = shop._id || 'default_shop';
+        const shopId = shop.id || shop._id || 'default_shop';
         if (!shopGroupsForShipping[shopId]) {
           shopGroupsForShipping[shopId] = [];
         }
@@ -168,7 +172,7 @@ const Cart = () => {
   cartItems.forEach(item => {
     // If shop is missing, group under a default 'Stuffy Supermarket' shop
     const shop = item.shop || { _id: 'default_shop', name: 'Stuffy Supermarket' };
-    const shopId = shop._id || 'default_shop';
+    const shopId = shop.id || shop._id || 'default_shop';
     if (!shopGroups[shopId]) {
       shopGroups[shopId] = {
         shop,
@@ -184,7 +188,7 @@ const Cart = () => {
   let totalShopDiscounts = 0;
 
   const computedGroups = Object.values(shopGroups).map(group => {
-    const shopId = group.shop._id || 'default_shop';
+    const shopId = group.shop.id || group.shop._id || 'default_shop';
     const selectedItems = group.items.filter(item => selectedItemIds.includes(item.id));
     const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     
@@ -197,13 +201,15 @@ const Cart = () => {
       if (voucher.type === 'shipping') {
         shipping = 0;
       } else {
-        if (voucher.discountType === 'percentage') {
+        if (voucher.discountAmount !== undefined) {
+          discountAmount = voucher.discountAmount;
+        } else if (voucher.discountType === 'percentage') {
           discountAmount = subtotal * (voucher.discountValue / 100);
           if (voucher.maxDiscount > 0) {
             discountAmount = Math.min(discountAmount, voucher.maxDiscount);
           }
         } else {
-          discountAmount = voucher.discountValue;
+          discountAmount = voucher.discountValue || 0;
         }
         discountAmount = Math.min(discountAmount, subtotal);
       }
@@ -232,19 +238,32 @@ const Cart = () => {
   // Calculate platform discount
   let platformDiscount = 0;
   if (platformVoucher && totalSelectedSubtotal > 0) {
-    if (platformVoucher.type === 'shipping') {
-      totalShipping = 0;
-    } else {
-      if (platformVoucher.discountType === 'percentage') {
-        platformDiscount = totalSelectedSubtotal * (platformVoucher.discountValue / 100);
-        if (platformVoucher.maxDiscount > 0) {
-          platformDiscount = Math.min(platformDiscount, platformVoucher.maxDiscount);
-        }
-      } else {
-        platformDiscount = platformVoucher.discountValue;
+    if (platformVoucher.discountAmount !== undefined) {
+      platformDiscount = platformVoucher.discountAmount;
+    } else if (platformVoucher.discountType === 'percentage') {
+      platformDiscount = totalSelectedSubtotal * (platformVoucher.discountValue / 100);
+      if (platformVoucher.maxDiscount > 0) {
+        platformDiscount = Math.min(platformDiscount, platformVoucher.maxDiscount);
       }
-      // Ensure platform discount doesn't exceed remaining total
-      platformDiscount = Math.min(platformDiscount, totalSelectedSubtotal - totalShopDiscounts - spinDiscount);
+    } else {
+      platformDiscount = platformVoucher.discountValue || 0;
+    }
+    // Ensure platform discount doesn't exceed remaining total
+    platformDiscount = Math.min(platformDiscount, totalSelectedSubtotal - totalShopDiscounts - spinDiscount);
+  }
+
+  // Calculate platform shipping discount
+  let platformShippingDiscount = 0;
+  if (shippingVoucher && totalShipping > 0) {
+    if (shippingVoucher.discountType === 'percentage') {
+      platformShippingDiscount = totalShipping * (shippingVoucher.discountValue / 100);
+      if (shippingVoucher.maxDiscount > 0) {
+        platformShippingDiscount = Math.min(platformShippingDiscount, shippingVoucher.maxDiscount);
+      }
+    } else if (shippingVoucher.discountType === 'fixed') {
+      platformShippingDiscount = Math.min(totalShipping, shippingVoucher.discountValue);
+    } else {
+      platformShippingDiscount = totalShipping; // Default 100% free shipping
     }
   }
 
@@ -256,7 +275,7 @@ const Cart = () => {
   const coinsRedeemedVal = redeemCoinsChecked ? maxRedeemableCoins : 0;
 
   // Final Total
-  const finalTotal = Math.max(0, totalSelectedSubtotal - totalShopDiscounts - spinDiscount - platformDiscount - coinsRedeemedVal + totalShipping);
+  const finalTotal = Math.max(0, totalSelectedSubtotal - totalShopDiscounts - spinDiscount - platformDiscount - platformShippingDiscount - coinsRedeemedVal + totalShipping);
 
   // Apply voucher API functions
   const applyShopVoucher = async (shopId, code, shopSubtotal, shopItems) => {
@@ -304,7 +323,12 @@ const Cart = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setPlatformVoucher(data);
+        if (data.type === 'shipping') {
+          setShippingVoucher(data);
+        } else {
+          setPlatformVoucher(data);
+        }
+        setPlatformVoucherCode('');
       } else {
         setPlatformVoucherError(data.error || t('invalid_voucher'));
       }
@@ -313,7 +337,7 @@ const Cart = () => {
     }
   };
 
-  const handleCheckout = async (shippingAddress) => {
+  const handleCheckout = async (shippingAddress, method = 'Credit Card (Stripe Mock)') => {
     const userInfoString = localStorage.getItem('userInfo');
     if (!userInfoString) {
       alert(t('login_required'));
@@ -347,10 +371,11 @@ const Cart = () => {
       itemsPrice: totalSelectedSubtotal,
       taxPrice: 0,
       totalPrice: finalTotal,
-      paymentMethod: 'Credit Card (Stripe Mock)',
+      paymentMethod: method,
       shippingAddress,
       voucherCode: platformVoucher?.code || '',
       shopVoucherCode: shopVoucherCode,
+      shippingVoucherCode: shippingVoucher?.code || '',
       selectedCarriers,
       redeemCoins: coinsRedeemedVal
     };
@@ -365,7 +390,7 @@ const Cart = () => {
         body: JSON.stringify(orderPayload)
       });
       if (res.ok) {
-        alert(t('order_placed_success'));
+        const orderData = await res.json();
 
         // Update user coins local storage
         if (coinsRedeemedVal > 0) {
@@ -386,9 +411,37 @@ const Cart = () => {
         }
         
         setShowCheckout(false);
+
+        if (method === 'VietQR') {
+          // PayOS VietQR flow: generate payment link and redirect
+          try {
+            const payosRes = await fetch(`${API_BASE}/api/payments/payos/create-link`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                parentOrderId: orderData.parentOrderId,
+                originHost: window.location.origin
+              })
+            });
+            const payosData = await payosRes.json();
+            if (payosRes.ok && payosData.checkoutUrl) {
+              window.location.href = payosData.checkoutUrl;
+            } else {
+              alert(t('error_creating_invoice') + ": " + (payosData.error || 'Failed to create payment link'));
+            }
+          } catch (err) {
+            alert(t('network_error') + ": " + err.message);
+          }
+        } else {
+          // Standard Stripe checkout success alert
+          alert(t('order_placed_success'));
+        }
       } else {
         const err = await res.json();
-        alert(t('error_creating_invoice') + err.error);
+        alert(t('error_creating_invoice') + ": " + err.error);
       }
     } catch (e) {
       alert(t('network_error') + ": " + e.message);
@@ -413,6 +466,22 @@ const Cart = () => {
       socket.off("DESKTOP_RECEIVE_ITEM");
       socket.disconnect();
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      const cancel = params.get('cancel');
+
+      if (success === 'true') {
+        alert("Thanh toán thành công! Đơn hàng của bạn đang được xử lý.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (cancel === 'true') {
+        alert("Giao dịch thanh toán VietQR đã bị hủy.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   }, []);
 
   return (
@@ -444,6 +513,23 @@ const Cart = () => {
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${typeof window !== 'undefined' ? window.location.origin : ''}/scanner/${SESSION_CODE}`} alt="QR Code" style={{ width: '100%', display: 'block' }} />
             </div>
             <p style={{ marginTop: '20px', fontSize: '1.1rem', letterSpacing: '2px', fontWeight: 'bold', color: '#38bdf8' }}>{t('pin')}: {SESSION_CODE}</p>
+            <button
+              onClick={() => window.open(`/scanner/${SESSION_CODE}`, '_blank')}
+              style={{
+                marginTop: '12px',
+                background: 'rgba(56,189,248,0.15)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56,189,248,0.3)',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              📱 Mở Camera quét QR ở Tab mới
+            </button>
           </div>
         </div>
       ) : (
@@ -452,7 +538,7 @@ const Cart = () => {
           {/* Left Column: Grouped Items */}
           <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
             {computedGroups.map((group) => {
-              const shopId = group.shop._id || 'default_shop';
+              const shopId = group.shop.id || group.shop._id || 'default_shop';
               const shopName = group.shop.name || 'Stuffy Supermarket';
               const shopLogo = group.shop.logo;
               const isAllGroupSelected = group.items.every(item => selectedItemIds.includes(item.id));
@@ -636,6 +722,12 @@ const Cart = () => {
                 <span style={{ fontWeight: '700' }}>-${platformDiscount.toFixed(2)}</span>
               </div>
             )}
+            {platformShippingDiscount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#16a34a' }}>
+                <span style={{ fontSize: '1rem' }}>{t('shipping_discount') || 'Shipping Discount'}</span>
+                <span style={{ fontWeight: '700' }}>-${platformShippingDiscount.toFixed(2)}</span>
+              </div>
+            )}
             {coinsRedeemedVal > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#16a34a' }}>
                 <span style={{ fontSize: '1rem' }}>{t('coins_redeemed')}</span>
@@ -666,10 +758,10 @@ const Cart = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
               <span style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-muted)' }}>{t('total')}</span>
               <div style={{ textAlign: 'right' }}>
-                {(discount?.discount > 0 || totalShopDiscounts > 0 || platformDiscount > 0) && (
+                {(discount?.discount > 0 || totalShopDiscounts > 0 || platformDiscount > 0 || platformShippingDiscount > 0) && (
                   <div style={{ fontSize: '1rem', fontWeight: '700', color: '#94a3b8', textDecoration: 'line-through' }}>${(totalSelectedSubtotal + totalShipping).toFixed(2)}</div>
                 )}
-                <span style={{ fontSize: '2.5rem', fontWeight: '900', color: (discount?.discount > 0 || totalShopDiscounts > 0 || platformDiscount > 0) ? '#16a34a' : 'var(--primary-color)', letterSpacing: '-1px' }}>${finalTotal.toFixed(2)}</span>
+                <span style={{ fontSize: '2.5rem', fontWeight: '900', color: (discount?.discount > 0 || totalShopDiscounts > 0 || platformDiscount > 0 || platformShippingDiscount > 0) ? '#16a34a' : 'var(--primary-color)', letterSpacing: '-1px' }}>${finalTotal.toFixed(2)}</span>
               </div>
             </div>
             
@@ -690,9 +782,17 @@ const Cart = () => {
               {platformVoucher && (
                 <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#15803d' }}>
-                    {platformVoucher.code}: {platformVoucher.type === 'shipping' ? t('free_shipping_options') : `-$${platformVoucher.discountAmount?.toFixed(2)}`}
+                    🎟️ {t('platform_discount')}: {platformVoucher.code} (-${platformVoucher.discountAmount?.toFixed(2)})
                   </span>
-                  <button onClick={() => { setPlatformVoucher(null); setPlatformVoucherCode(''); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>x</button>
+                  <button onClick={() => { setPlatformVoucher(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+                </div>
+              )}
+              {shippingVoucher && (
+                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#15803d' }}>
+                    🚚 {t('free_shipping_options') || 'Miễn phí vận chuyển'}: {shippingVoucher.code}
+                  </span>
+                  <button onClick={() => { setShippingVoucher(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
                 </div>
               )}
             </div>
@@ -737,6 +837,23 @@ const Cart = () => {
               <div>
                 <p style={{ margin: '0 0 3px 0', fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-main)' }}>{t('scan_and_go')}</p>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('session_pin')}: <strong style={{color: 'var(--primary-color)', letterSpacing: '1px'}}>{SESSION_CODE}</strong></p>
+                <button
+                  onClick={() => window.open(`/scanner/${SESSION_CODE}`, '_blank')}
+                  style={{
+                    marginTop: '6px',
+                    background: 'rgba(99,102,241,0.1)',
+                    color: '#6366f1',
+                    border: '1px solid rgba(99,102,241,0.2)',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'block'
+                  }}
+                >
+                  📱 Quét QR bằng Camera
+                </button>
               </div>
             </div>
           </div>
@@ -763,6 +880,7 @@ const Cart = () => {
             shopDiscounts: totalShopDiscounts,
             spinDiscount: spinDiscount,
             platformDiscount: platformDiscount,
+            shippingDiscount: platformShippingDiscount,
             coinsDiscount: coinsRedeemedVal
           }}
           onCheckout={handleCheckout}

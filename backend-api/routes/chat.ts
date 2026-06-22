@@ -18,7 +18,9 @@ router.get('/history/:partnerId', protect, async (req: any, res: Response) => {
         { sender: userId, recipient: partnerId },
         { sender: partnerId, recipient: userId }
       ]
-    }).sort({ createdAt: 1 });
+    }).sort({ createdAt: 1 })
+      .populate({ path: 'attachedProduct', select: 'name price image category countInStock' })
+      .populate({ path: 'attachedOrder', select: '_id itemsPrice totalPrice status createdAt paymentMethod' });
 
     // Mark incoming messages as read
     await ChatMessage.updateMany(

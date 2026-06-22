@@ -75,6 +75,14 @@ export default function ProductDetail() {
               owner: data.shop.owner
             }));
 
+            localStorage.setItem('currentViewProduct', JSON.stringify({
+              _id: data.id || data._id,
+              name: data.name,
+              price: data.price,
+              image: data.image || (data.images && data.images[0]) || 'https://via.placeholder.com/150',
+              category: data.category
+            }));
+
             // Fetch promotions
             fetch(`${API_BASE}/api/promotions/active/${shopId}`)
               .then(res => res.json())
@@ -142,6 +150,7 @@ export default function ProductDetail() {
 
       return () => {
         localStorage.removeItem('currentViewShop');
+        localStorage.removeItem('currentViewProduct');
       };
   }, [id]);
 
@@ -209,13 +218,13 @@ export default function ProductDetail() {
         {/* Image Gallery */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--border-light)' }}>
-            <img src={(product.images && product.images.length > 0 ? product.images[selectedImage] : product.image)} alt={product.name} style={{ width: '100%', maxWidth: '400px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+            <img src={(product.images && product.images.length > 0 ? product.images[selectedImage] : product.image)} alt={product.name} decoding="async" style={{ width: '100%', maxWidth: '400px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
           </div>
           {product.images && product.images.length > 1 && (
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '5px 0' }}>
               {product.images.map((img, idx) => (
                 <button key={idx} onClick={() => setSelectedImage(idx)} style={{ flex: '0 0 70px', width: '70px', height: '70px', borderRadius: '12px', border: selectedImage === idx ? '2px solid var(--primary-color)' : '1px solid var(--border-light)', background: '#f8fafc', cursor: 'pointer', padding: '5px', overflow: 'hidden' }}>
-                  <img src={img} alt={`${product.name} ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img src={img} alt={`${product.name} ${idx + 1}`} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>
@@ -313,7 +322,7 @@ export default function ProductDetail() {
                               }
                             }}
                           />
-                          <img src={ap.product.image} alt={ap.product.name} style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                          <img src={ap.product.image} alt={ap.product.name} loading="lazy" decoding="async" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
                           <span style={{ flex: 1 }}>{ap.product.name}</span>
                           <span style={{ color: 'var(--primary-color)' }}>+${ap.addonPrice}</span>
                         </label>
@@ -341,7 +350,7 @@ export default function ProductDetail() {
               <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('seller_info')}</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 {product.shop.logo ? (
-                  <img src={product.shop.logo} alt={product.shop.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={product.shop.logo} alt={product.shop.name} loading="lazy" decoding="async" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), #8b5cf6)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
                     {(product.shop.name || 'S').charAt(0).toUpperCase()}
@@ -360,26 +369,73 @@ export default function ProductDetail() {
                   {product.shop.description}
                 </p>
               )}
-              <button 
-                onClick={() => navigate(`/store?shop=${product.shop._id || product.shop.id}`)}
-                style={{ 
-                  alignSelf: 'flex-start',
-                  background: 'white', 
-                  border: '1px solid var(--border-light)', 
-                  padding: '8px 16px', 
-                  borderRadius: '8px', 
-                  cursor: 'pointer', 
-                  fontWeight: '700', 
-                  fontSize: '0.8rem',
-                  color: 'var(--text-main)',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                }}
-                onMouseOver={e => e.target.style.background = '#f1f5f9'}
-                onMouseOut={e => e.target.style.background = 'white'}
-              >
-                {t('view_shop')}
-              </button>
+              
+              {/* Shop Location & Google Maps */}
+              <div style={{ marginTop: '5px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📍</span>
+                  <span><strong>Địa chỉ shop:</strong> {product.shop.district || 'Quận Thủ Đức'}, {product.shop.province || 'Hồ Chí Minh'}</span>
+                </div>
+                
+                <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-light)', height: '160px', width: '100%' }}>
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0, display: 'block' }}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent((product.shop.district || 'Quận Thủ Đức') + ', ' + (product.shop.province || 'Hồ Chí Minh'))}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                    allowFullScreen
+                    title="Google Maps"
+                  ></iframe>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  onClick={() => navigate(`/store?shop=${product.shop._id || product.shop.id}`)}
+                  style={{ 
+                    background: 'white', 
+                    border: '1px solid var(--border-light)', 
+                    padding: '8px 16px', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    fontWeight: '700', 
+                    fontSize: '0.8rem',
+                    color: 'var(--text-main)',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}
+                  onMouseOver={e => e.target.style.background = '#f1f5f9'}
+                  onMouseOut={e => e.target.style.background = 'white'}
+                >
+                  {t('view_shop')}
+                </button>
+                <button 
+                  onClick={() => {
+                    const userInfoString = localStorage.getItem('userInfo');
+                    if (!userInfoString) {
+                      alert(t('login_to_chat') || 'Vui lòng đăng nhập để trò chuyện với người bán.');
+                      return;
+                    }
+                    window.dispatchEvent(new CustomEvent("OPEN_SELLER_CHAT", { detail: { shop: product.shop } }));
+                  }}
+                  style={{ 
+                    background: 'var(--primary-color)', 
+                    border: 'none', 
+                    padding: '8px 16px', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    fontWeight: '700', 
+                    fontSize: '0.8rem',
+                    color: 'white',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 10px rgba(99,102,241,0.2)'
+                  }}
+                  onMouseOver={e => e.target.style.transform = 'scale(1.03)'}
+                  onMouseOut={e => e.target.style.transform = 'scale(1)'}
+                >
+                  💬 {t('chat_now') || 'Chat ngay'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -439,7 +495,7 @@ export default function ProductDetail() {
           )}
 
           {product.countInStock === 0 && (
-            <div style={{ padding: '12px 20px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', fontWeight: '700', marginBottom: '15px' }}>
+            <div style={{ padding: '12px 20px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', color: '#991b1b', fontWeight: '700', marginBottom: '15px' }}>
               {t('out_of_stock')}
             </div>
           )}
@@ -480,7 +536,7 @@ export default function ProductDetail() {
         {/* Write a Review Box */}
         <div style={{ background: '#f8fafc', padding: '30px', borderRadius: '20px', border: '1px solid var(--border-light)', height: 'fit-content' }}>
           <h3 style={{ margin: '0 0 20px 0', fontSize: '1.3rem', fontWeight: '800' }}>{t('write_review')}</h3>
-          {submitError && <div style={{ color: '#ef4444', marginBottom: '15px', fontSize: '0.9rem', padding: '10px', background: '#fef2f2', borderRadius: '8px' }}>{submitError}</div>}
+          {submitError && <div style={{ color: '#991b1b', marginBottom: '15px', fontSize: '0.9rem', padding: '10px', background: '#fef2f2', borderRadius: '8px' }}>{submitError}</div>}
           
           {!localStorage.getItem('userInfo') ? (
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5' }}>
@@ -541,6 +597,21 @@ export default function ProductDetail() {
                     {renderStars(review.rating)}
                   </div>
                   <p style={{ margin: 0, color: 'var(--text-main)', lineHeight: '1.6', fontSize: '0.95rem' }}>{review.comment}</p>
+                  {review.reply && (
+                    <div style={{ 
+                      marginTop: '15px', 
+                      padding: '15px', 
+                      background: '#f8fafc', 
+                      borderRadius: '12px', 
+                      borderLeft: '4px solid var(--primary-color)',
+                      fontSize: '0.9rem'
+                    }}>
+                      <div style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>🏪</span> {t('seller_response') || 'Seller Response'}
+                      </div>
+                      <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: '1.5' }}>{review.reply}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -564,7 +635,7 @@ export default function ProductDetail() {
             {recommendedProducts.map(p => (
               <div key={p.id} className="ds-glass-card" style={{ padding: '20px', borderRadius: '16px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s', border: '1px solid transparent' }} onClick={() => navigate(`/product/${p.id}`)} onMouseOver={e=>e.currentTarget.style.borderColor='var(--primary-color)'} onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}>
                 <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '15px', marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>
-                  <img src={p.image} alt={p.name} style={{ width: "120px", height: "120px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
+                  <img src={p.image} alt={p.name} loading="lazy" decoding="async" style={{ width: "120px", height: "120px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
                 </div>
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "1.05rem", fontWeight: '700', color: 'var(--text-main)', minHeight: '40px' }}>{p.name}</h4>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -593,7 +664,7 @@ export default function ProductDetail() {
                 </button>
 
                 <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '15px', marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>
-                  <img src={p.image} alt={p.name} style={{ width: "120px", height: "120px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
+                  <img src={p.image} alt={p.name} loading="lazy" decoding="async" style={{ width: "120px", height: "120px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
                 </div>
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "1.05rem", fontWeight: '700', color: 'var(--text-main)', minHeight: '40px' }}>{p.name}</h4>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

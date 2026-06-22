@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import User from '../models/User';
 import Shop from '../models/Shop';
 import jwt from 'jsonwebtoken';
+import { MailService } from '../services/MailService';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();
@@ -48,7 +49,7 @@ router.post('/register', async (req: Request, res: Response) => {
       emailVerificationExpires 
     });
 
-    console.log(`[Email Verification Mock] Sent to ${email}: http://localhost:5000/api/auth/verify/${emailVerificationToken}`);
+    await MailService.sendVerificationEmail(email, emailVerificationToken);
 
     if (user) {
       if (role === 'seller') {

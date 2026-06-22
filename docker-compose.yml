@@ -74,7 +74,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/stuffy_db
+      - MONGO_URI=mongodb://mongodb:27017/stuffy_db?replicaSet=rs0
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
       - JWT_SECRET=${JWT_SECRET:-stuffy_jwt_secret_change_in_production}
@@ -135,10 +135,17 @@ services:
 
   mongodb:
     image: mongo:latest
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'}]}).ok }"
+      interval: 10s
+      start_period: 30s
+      retries: 5
 
   jaeger:
     image: jaegertracing/all-in-one:latest

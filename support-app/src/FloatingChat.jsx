@@ -22,6 +22,9 @@ export default function FloatingChat() {
   const [sellerMessages, setSellerMessages] = useState([]);
   const [sellerInput, setSellerInput] = useState('');
   const [socket, setSocket] = useState(null);
+  const [currentViewProduct, setCurrentViewProduct] = useState(null);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [showOrderAttach, setShowOrderAttach] = useState(false);
   
   const chatEndRef = useRef(null);
   const sellerChatEndRef = useRef(null);
@@ -49,6 +52,22 @@ export default function FloatingChat() {
       scrollSellerToBottom();
     }
   }, [aiMessages, sellerMessages, activeTab]);
+
+  // Listen for the custom event to open a seller chat directly
+  useEffect(() => {
+    const handleOpenChat = (e) => {
+      if (e.detail && e.detail.shop) {
+        setIsOpen(true);
+        setActiveTab('seller');
+        setSelectedShop(e.detail.shop);
+      }
+    };
+
+    window.addEventListener("OPEN_SELLER_CHAT", handleOpenChat);
+    return () => {
+      window.removeEventListener("OPEN_SELLER_CHAT", handleOpenChat);
+    };
+  }, []);
 
   // Load currentViewShop from localStorage or retrieve list of active shops
   useEffect(() => {
@@ -104,8 +123,13 @@ export default function FloatingChat() {
     // Listen for incoming messages
     newSocket.on('RECEIVE_MESSAGE', (msg) => {
       // Only append if it belongs to the current conversation partner
+      const msgSenderId = msg.sender?._id || msg.sender;
+      const msgRecipientId = msg.recipient?._id || msg.recipient;
+      const partnerOwnerId = selectedShop?.owner?._id || selectedShop?.owner;
+      
       if (
-        (selectedShop && selectedShop.owner && (msg.sender === selectedShop.owner || msg.recipient === selectedShop.owner))
+        selectedShop && partnerOwnerId && 
+        (msgSenderId === partnerOwnerId || msgRecipientId === partnerOwnerId)
       ) {
         setSellerMessages(prev => {
           // Check if message is already in list to prevent duplicates
@@ -120,14 +144,16 @@ export default function FloatingChat() {
     };
   }, [activeTab, isOpen, selectedShop]);
 
-  // Fetch Message History when selectedShop changes
+  // Fetch Message History and relevant details when selectedShop changes
   useEffect(() => {
-    const fetchChatHistory = async () => {
+    const fetchChatData = async () => {
       if (!selectedShop || !selectedShop.owner) return;
       const userInfoString = localStorage.getItem('userInfo');
       if (!userInfoString) return;
       
       const { token } = JSON.parse(userInfoString);
+      
+      // 1. Fetch History
       try {
         const res = await fetch(`${API_BASE}/api/chat/history/${selectedShop.owner}`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -139,9 +165,52 @@ export default function FloatingChat() {
       } catch (err) {
         console.error('Error fetching history:', err);
       }
+
+      // 2. Load current viewed product if it belongs to this shop
+      const prodStr = localStorage.getItem('currentViewProduct');
+      if (prodStr) {
+        try {
+          const prod = JSON.parse(prodStr);
+          const shopStr = localStorage.getItem('currentViewShop');
+          if (shopStr) {
+            const shop = JSON.parse(shopStr);
+            if (shop._id === selectedShop._id) {
+              setCurrentViewProduct(prod);
+            } else {
+              setCurrentViewProduct(null);
+            }
+          } else {
+            setCurrentViewProduct(null);
+          }
+        } catch (e) {
+          setCurrentViewProduct(null);
+        }
+      } else {
+        setCurrentViewProduct(null);
+      }
+
+      // 3. Fetch recent orders for this shop
+      try {
+        const res = await fetch(`${API_BASE}/api/orders/myorders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const filtered = data.filter(order => {
+              const oShopId = order.shop?._id || order.shop || '';
+              return oShopId.toString() === selectedShop._id.toString();
+            });
+            setRecentOrders(filtered.slice(0, 5));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching recent orders for chat:', err);
+      }
     };
 
-    fetchChatHistory();
+    fetchChatData();
+    setShowOrderAttach(false);
   }, [selectedShop]);
 
   // AI Copilot Send Handler
@@ -387,6 +456,67 @@ export default function FloatingChat() {
                               lineHeight: '1.4'
                             }}>
                                {m.message}
+                               
+                               {/* Render Product Card */}
+                               {m.attachmentType === 'product' && m.attachedProduct && (
+                                 <div 
+                                   onClick={() => window.location.href = `/product/${m.attachedProduct._id || m.attachedProduct.id}`}
+                                   style={{ 
+                                     background: isMe ? 'rgba(255,255,255,0.1)' : '#f8fafc', 
+                                     padding: '10px', 
+                                     borderRadius: '12px', 
+                                     marginTop: '8px', 
+                                     border: '1px solid rgba(0,0,0,0.08)', 
+                                     display: 'flex', 
+                                     gap: '10px', 
+                                     alignItems: 'center', 
+                                     cursor: 'pointer', 
+                                     minWidth: '220px' 
+                                   }}
+                                 >
+                                   <img 
+                                     src={m.attachedProduct.image} 
+                                     style={{ width: '40px', height: '40px', objectFit: 'contain', background: 'white', borderRadius: '6px' }} 
+                                   />
+                                   <div style={{ flex: 1, overflow: 'hidden' }}>
+                                     <div style={{ fontSize: '0.78rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: isMe ? 'white' : 'var(--text-main)' }}>
+                                       {m.attachedProduct.name}
+                                     </div>
+                                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: isMe ? '#a5b4fc' : 'var(--primary-color)', marginTop: '2px' }}>
+                                       ${m.attachedProduct.price}
+                                     </div>
+                                   </div>
+                                 </div>
+                               )}
+
+                               {/* Render Order Card */}
+                               {m.attachmentType === 'order' && m.attachedOrder && (
+                                 <div 
+                                   onClick={() => window.location.href = `/profile`}
+                                   style={{ 
+                                     background: isMe ? 'rgba(255,255,255,0.1)' : '#f8fafc', 
+                                     padding: '10px', 
+                                     borderRadius: '12px', 
+                                     marginTop: '8px', 
+                                     border: '1px solid rgba(0,0,0,0.08)', 
+                                     minWidth: '220px', 
+                                     cursor: 'pointer' 
+                                   }}
+                                 >
+                                   <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: isMe ? '#e0e7ff' : 'var(--text-muted)' }}>
+                                     ĐƠN HÀNG: #{m.attachedOrder._id ? m.attachedOrder._id.substring(0, 8).toUpperCase() : 'N/A'}
+                                   </div>
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', alignItems: 'center' }}>
+                                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: isMe ? 'white' : 'var(--text-main)' }}>
+                                       Tổng: ${m.attachedOrder.totalPrice?.toFixed(2)}
+                                     </div>
+                                     <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '8px', background: isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0', color: isMe ? 'white' : 'var(--text-main)', fontWeight: 'bold' }}>
+                                       {m.attachedOrder.status}
+                                     </span>
+                                   </div>
+                                 </div>
+                               )}
+
                                <div style={{ fontSize: '0.65rem', opacity: 0.7, textAlign: 'right', marginTop: '4px' }}>
                                  {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                </div>
@@ -397,7 +527,50 @@ export default function FloatingChat() {
                      <div ref={sellerChatEndRef} />
                   </div>
 
-                  <form onSubmit={handleSellerSend} style={{ padding: '20px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '10px', background: 'white' }}>
+                  {/* Product Attachment Preview Panel */}
+                  {currentViewProduct && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 15px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                        <img src={currentViewProduct.image} style={{ width: '28px', height: '28px', objectFit: 'contain', background: 'white', borderRadius: '4px' }} />
+                        <div style={{ fontSize: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                          <strong>{currentViewProduct.name}</strong><br/>
+                          <span style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>${currentViewProduct.price}</span>
+                        </div>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const userInfoString = localStorage.getItem('userInfo');
+                          if (!userInfoString || !selectedShop || !selectedShop.owner || !socket) return;
+                          const { _id: userId } = JSON.parse(userInfoString);
+                          socket.emit('SEND_MESSAGE', {
+                            senderId: userId,
+                            recipientId: selectedShop.owner,
+                            shopId: selectedShop._id,
+                            message: `[Thẻ sản phẩm] ${currentViewProduct.name}`,
+                            attachmentType: 'product',
+                            attachedProduct: currentViewProduct._id
+                          });
+                        }}
+                        style={{ padding: '3px 8px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Gửi sản phẩm
+                      </button>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSellerSend} style={{ padding: '20px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '10px', background: 'white', position: 'relative', alignItems: 'center' }}>
+                     {recentOrders.length > 0 && (
+                       <button
+                         type="button"
+                         onClick={() => setShowOrderAttach(!showOrderAttach)}
+                         style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', padding: '0 5px' }}
+                         title="Đính kèm đơn hàng"
+                       >
+                         📦
+                       </button>
+                     )}
+                     
                      <input 
                        type="text" 
                        placeholder={t('message_shop_placeholder', { name: selectedShop.name })} 
@@ -408,6 +581,44 @@ export default function FloatingChat() {
                      <button type="submit" disabled={!sellerInput.trim()} style={{ width: '45px', height: '45px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: sellerInput.trim() ? 1 : 0.5 }}>
                         🚀
                      </button>
+
+                     {/* Order Attachment Dropdown */}
+                     {showOrderAttach && (
+                       <div style={{ position: 'absolute', bottom: '75px', left: '15px', width: '310px', maxHeight: '200px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', overflowY: 'auto', zIndex: 10 }}>
+                         <div style={{ padding: '8px 12px', fontWeight: 'bold', fontSize: '0.8rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>Đính kèm đơn hàng của bạn</div>
+                         {recentOrders.map(order => (
+                           <div 
+                             key={order._id}
+                             onClick={() => {
+                               const userInfoString = localStorage.getItem('userInfo');
+                               if (!userInfoString || !selectedShop || !selectedShop.owner || !socket) return;
+                               const { _id: userId } = JSON.parse(userInfoString);
+                               socket.emit('SEND_MESSAGE', {
+                                 senderId: userId,
+                                 recipientId: selectedShop.owner,
+                                 shopId: selectedShop._id,
+                                 message: `[Thẻ đơn hàng] #${order._id.substring(0, 8)}`,
+                                 attachmentType: 'order',
+                                 attachedOrder: order._id
+                               });
+                               setShowOrderAttach(false);
+                             }}
+                             style={{ padding: '10px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                             onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
+                             onMouseOut={e => e.currentTarget.style.background = 'white'}
+                           >
+                             <div style={{ fontSize: '0.75rem', textAlign: 'left' }}>
+                               <strong>#{order._id.substring(0, 8).toUpperCase()}</strong><br/>
+                               <span style={{ color: 'var(--text-muted)' }}>{new Date(order.createdAt).toLocaleDateString()}</span>
+                             </div>
+                             <div style={{ textAlign: 'right', fontSize: '0.75rem' }}>
+                               <span style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>${order.totalPrice?.toFixed(2)}</span><br/>
+                               <span style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 'bold' }}>{order.status}</span>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     )}
                   </form>
                 </React.Fragment>
               )}

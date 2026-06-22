@@ -4,6 +4,7 @@ import Order from '../models/Order';
 import Shop from '../models/Shop';
 import User from '../models/User';
 import CoinTransaction from '../models/CoinTransaction';
+import { sendPushNotification } from '../services/webPush';
 
 const router = express.Router();
 
@@ -52,6 +53,22 @@ router.post('/fulfill', protect, async (req: any, res: Response) => {
     ];
 
     await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_room:${order.user.toString()}`).emit('ORDER_STATUS_UPDATE', {
+        orderId: order._id,
+        status: 'Processing'
+      });
+    }
+
+    // Gửi thông báo đẩy ngoại tuyến
+    sendPushNotification(
+      order.user.toString(),
+      'Cập nhật đơn hàng',
+      `Đơn hàng #${order._id.toString().slice(-8).toUpperCase()} đang được xử lý (Processing).`
+    );
+
     res.json({ message: 'Shipment arranged successfully', order });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -111,7 +128,41 @@ router.get('/label/:orderId', async (req: any, res: Response) => {
 
 // POST /api/shipping/webhook - 3PL Logistics update receiver
 router.post('/webhook', async (req: any, res: Response) => {
-  const { trackingNumber, carrierStatus, location } = req.body;
+  let trackingNumber = req.body.trackingNumber;
+  let carrierStatus = req.body.carrierStatus;
+  let location = req.body.location;
+
+  // Detect GHN webhook format
+  if (req.body.OrderCode !== undefined && req.body.Status !== undefined) {
+    trackingNumber = req.body.OrderCode;
+    const ghnStatus = req.body.Status;
+    if (ghnStatus === 'cancel') {
+      carrierStatus = 'CANCELED';
+    } else if (ghnStatus === 'delivered') {
+      carrierStatus = 'DELIVERED';
+    } else if (['picked', 'storing', 'transporting', 'delivering', 'money_collect_picking'].includes(ghnStatus)) {
+      carrierStatus = 'IN_TRANSIT';
+    } else {
+      carrierStatus = 'PICKED_UP';
+    }
+    location = req.body.Warehouse ? `GHN Hub (${req.body.Warehouse})` : 'GHN Transit Hub';
+  }
+  // Detect GHTK webhook format
+  else if (req.body.label_id !== undefined && req.body.status_id !== undefined) {
+    trackingNumber = req.body.label_id;
+    const ghtkStatus = Number(req.body.status_id);
+    if ([5, 6].includes(ghtkStatus)) {
+      carrierStatus = 'DELIVERED';
+    } else if ([2, 3, 4, 12, 123].includes(ghtkStatus)) {
+      carrierStatus = 'IN_TRANSIT';
+    } else if ([-1, 9, 21].includes(ghtkStatus)) {
+      carrierStatus = 'CANCELED';
+    } else {
+      carrierStatus = 'PICKED_UP';
+    }
+    location = req.body.reason ? `GHTK Hub (${req.body.reason})` : 'GHTK Transit Hub';
+  }
+
   if (!trackingNumber || !carrierStatus) {
     return res.status(400).json({ error: 'trackingNumber and carrierStatus are required' });
   }
@@ -134,6 +185,8 @@ router.post('/webhook', async (req: any, res: Response) => {
     // Map 3PL status to Order status
     if (carrierStatus === 'PICKED_UP' || carrierStatus === 'IN_TRANSIT') {
       order.status = 'Shipped';
+    } else if (carrierStatus === 'CANCELED') {
+      order.status = 'Canceled';
     } else if (carrierStatus === 'DELIVERED') {
       order.status = 'Delivered';
       order.deliveredAt = new Date();
@@ -153,6 +206,22 @@ router.post('/webhook', async (req: any, res: Response) => {
     }
 
     await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_room:${order.user.toString()}`).emit('ORDER_STATUS_UPDATE', {
+        orderId: order._id,
+        status: order.status
+      });
+    }
+
+    // Gửi thông báo đẩy ngoại tuyến
+    sendPushNotification(
+      order.user.toString(),
+      'Cập nhật đơn hàng',
+      `Đơn hàng #${order._id.toString().slice(-8).toUpperCase()} có trạng thái mới: ${order.status}.`
+    );
+
     res.json({ message: 'Logistics webhook processed successfully', order });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

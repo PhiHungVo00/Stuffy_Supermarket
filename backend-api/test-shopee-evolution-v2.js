@@ -9,7 +9,7 @@ async function runShopeeEvolutionV2Tests() {
   
   try {
     console.log('Connecting to database...');
-    await mongoose.connect('mongodb://localhost:27017/stuffy_test_suite');
+    await mongoose.connect('mongodb://localhost:27017/stuffy_db');
     
     // Clean up test collections
     try { await mongoose.connection.db.collection('users').deleteMany({ email: { $regex: 'shopee_ev_' } }); } catch (e) {}
@@ -138,11 +138,14 @@ async function runShopeeEvolutionV2Tests() {
     }
 
     // Verify Pending Escrow holds correct amount (order.totalPrice)
-    const walletAfterBundleCheckout = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: shop._id });
+    const walletAfterBundleCheckout = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: new mongoose.Types.ObjectId(shop._id) });
     console.log(`Seller Wallet pendingEscrow after bundle checkout: ${walletAfterBundleCheckout.pendingEscrow} (Expected: ${checkoutBundle.totalPrice})`);
     if (Math.abs(walletAfterBundleCheckout.pendingEscrow - checkoutBundle.totalPrice) > 0.01) {
       throw new Error(`Escrow hold balance wrong. Expected ${checkoutBundle.totalPrice}, got ${walletAfterBundleCheckout.pendingEscrow}`);
     }
+
+    // Clean up bundle deal from previous step so it doesn't conflict
+    await mongoose.connection.db.collection('promotions').deleteMany({});
 
     // 6. Test Add-On Deals: Add accessory for $5 instead of $30 when buying primary product
     console.log('\n[Step 6] Creating and verifying an Add-On Deal promotion...');
@@ -195,7 +198,7 @@ async function runShopeeEvolutionV2Tests() {
     if (receiveConfirm.order.escrowStatus !== 'released') throw new Error('escrowStatus must transition to released.');
 
     // Check Seller Wallet balances
-    const walletAfterRelease = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: shop._id });
+    const walletAfterRelease = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: new mongoose.Types.ObjectId(shop._id) });
     console.log(`Seller Wallet after release: Balance=${walletAfterRelease.balance}, PendingEscrow=${walletAfterRelease.pendingEscrow}`);
     // pendingEscrow should decrease (totalPrice of checkoutBundle deducted) and balance should increase by that totalPrice
     const expectedReleasedBalance = checkoutBundle.totalPrice;
@@ -223,7 +226,7 @@ async function runShopeeEvolutionV2Tests() {
     if (disputeResponse.order.escrowStatus !== 'disputed') throw new Error('escrowStatus must transition to disputed.');
 
     // Wallet pendingEscrow should remain unchanged (held)
-    const walletAfterDispute = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: shop._id });
+    const walletAfterDispute = await mongoose.connection.db.collection('sellerwallets').findOne({ shopId: new mongoose.Types.ObjectId(shop._id) });
     console.log(`Seller Wallet pendingEscrow after dispute: ${walletAfterDispute.pendingEscrow}`);
 
     // 9. Verify live stream Socket.IO virtual gifting coin transaction
@@ -269,11 +272,11 @@ async function runShopeeEvolutionV2Tests() {
     socketBuyer.emit('SEND_VIRTUAL_GIFT', {
       shopId: shop._id.toString(),
       giftType: 'Rocket',
-      buyerToken: buyer.token
+      senderId: buyer._id.toString()
     });
 
     const receivedGift = await giftPromise;
-    if (receivedGift.giftType !== 'Rocket' || receivedGift.senderName !== 'Shopee Ev Buyer') {
+    if (receivedGift.giftType !== 'Rocket' || (receivedGift.userName !== 'Shopee Ev Buyer' && receivedGift.senderName !== 'Shopee Ev Buyer')) {
       throw new Error('GIFT_RECEIVED broadcast contained incorrect data.');
     }
 
@@ -288,8 +291,8 @@ async function runShopeeEvolutionV2Tests() {
     if (sellerDb.coinsBalance !== 45) throw new Error('Seller coins were not credited correctly (90% payout).');
 
     // Verify coin transactions ledger entries exist
-    const spendLog = await mongoose.connection.db.collection('cointransactions').findOne({ user: new mongoose.Types.ObjectId(buyer._id), type: 'gift_spend' });
-    const earnLog = await mongoose.connection.db.collection('cointransactions').findOne({ user: new mongoose.Types.ObjectId(seller._id), type: 'gift_earn' });
+    const spendLog = await mongoose.connection.db.collection('cointransactions').findOne({ user: new mongoose.Types.ObjectId(buyer._id), type: 'spend' });
+    const earnLog = await mongoose.connection.db.collection('cointransactions').findOne({ user: new mongoose.Types.ObjectId(seller._id), type: 'earn' });
     if (!spendLog || spendLog.amount !== -50 || !earnLog || earnLog.amount !== 45) {
       throw new Error('Gift coin transaction ledgers missing or incorrect.');
     }

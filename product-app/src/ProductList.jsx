@@ -175,6 +175,7 @@ export default function ProductList() {
           <select
             value={sortBy}
             onChange={e => { setSortBy(e.target.value); setPage(1); }}
+            aria-label="Sắp xếp sản phẩm"
             style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-light)', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', background: 'white' }}
           >
             <option value="newest">{t('sort_newest')}</option>
@@ -189,7 +190,7 @@ export default function ProductList() {
             <input type="number" placeholder={t('max_price')} value={maxPrice} onChange={e => setMaxPrice(e.target.value)} onBlur={() => { setPage(1); fetchProducts(); }} style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.85rem' }} />
           </div>
           {(minPrice || maxPrice) && (
-            <button onClick={() => { setMinPrice(''); setMaxPrice(''); setPage(1); }} style={{ padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>
+            <button onClick={() => { setMinPrice(''); setMaxPrice(''); setPage(1); }} style={{ padding: '6px 14px', borderRadius: '8px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', fontWeight: '600', fontSize: '0.8rem', cursor: 'pointer' }}>
               {t('clear_price')}
             </button>
           )}
@@ -240,7 +241,7 @@ export default function ProductList() {
                       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '8px 20px', borderRadius: '8px', fontWeight: '800', fontSize: '0.9rem', zIndex: 3 }}>{t('out_of_stock')}</div>
                     )}
                     {p.countInStock > 0 && p.countInStock <= 5 && (
-                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: '#fef2f2', color: '#ef4444', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1, border: '1px solid #fecaca' }}>{t('only_left', { count: p.countInStock })}</div>
+                      <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: '#fef2f2', color: '#991b1b', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', zIndex: 1, border: '1px solid #fca5a5' }}>{t('only_left', { count: p.countInStock })}</div>
                     )}
                     
                     <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)', color: 'var(--text-main)', fontSize: '0.7rem', fontWeight: '800', padding: '4px 10px', borderRadius: '99px', border: '1px solid var(--border-light)', zIndex: 1, textTransform: 'uppercase' }}>
@@ -249,13 +250,14 @@ export default function ProductList() {
 
                     <button 
                       onClick={(e) => { e.stopPropagation(); toggleWishlist(p); }} 
+                      aria-label={wishlist.some(w => w.id === p.id) ? "Xóa khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
                       style={{ position: 'absolute', top: '12px', right: '100px', background: 'rgba(255,255,255,0.9)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', zIndex: 2, fontSize: '1rem', transition: 'all 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}
                     >
                       {wishlist.some(w => w.id === p.id) ? '❤️' : '🤍'}
                     </button>
 
                     <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '20px', marginBottom: '15px', display: 'flex', justifyContent: 'center', transition: 'all 0.3s', cursor: 'pointer' }} onClick={() => navigate(`/product/${p.id}`)}>
-                      <img src={getOptimizedImage(p.image, 320, 80)} alt={p.name} style={{ width: "160px", height: "160px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
+                      <img src={getOptimizedImage(p.image, 320, 80)} alt={p.name} loading="lazy" decoding="async" style={{ width: "160px", height: "160px", objectFit: 'contain', mixBlendMode: 'multiply' }} />
                     </div>
                     
                     <h4 style={{ margin: "0 0 4px 0", fontSize: "1.2rem", fontWeight: '700', color: 'var(--text-main)', minHeight: '50px', cursor: 'pointer' }} onClick={() => navigate(`/product/${p.id}`)}>{p.name}</h4>
@@ -285,7 +287,7 @@ export default function ProductList() {
                         window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { 
                           detail: { message: t('added_to_cart_toast', { name: p.name }), type: 'success' } 
                         }));
-                      }} style={{ background: isFlashing ? "#ef4444" : "var(--primary-color)" }}>
+                      }} style={isFlashing ? { background: "#ef4444" } : undefined}>
                         {isFlashing ? t('add_now') : t('add_to_cart')}
                       </Button>
                     </div>

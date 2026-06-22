@@ -26,7 +26,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   loadCartFromServer: async () => {
     try {
       const data = await cartApi.getCart();
-      set({ cartItems: data.cartItems as CartItem[] });
+      set({ cartItems: (Array.isArray(data) ? data : (data.cartItems || [])) as CartItem[] });
     } catch (e) {
       console.error("Failed to load cart", e);
     }

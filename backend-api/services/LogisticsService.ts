@@ -12,6 +12,7 @@ export interface ICalculateShippingInput {
 
 export interface ILogisticsStrategy {
   calculateFee(input: Omit<ICalculateShippingInput, 'carrierCode'>): Promise<number>;
+  dispatchOrderTo3PL(order: any): Promise<{ trackingNumber: string; labelUrl?: string }>;
 }
 
 // Master Data Helper resolvers for Sandbox APIs
@@ -69,6 +70,49 @@ export class GhnStrategy implements ILogisticsStrategy {
     }
     throw new Error('Invalid GHN API response structure');
   }
+
+  public async dispatchOrderTo3PL(order: any): Promise<{ trackingNumber: string; labelUrl?: string }> {
+    if (!process.env.GHN_TOKEN || process.env.GHN_TOKEN === 'mock_token') {
+      throw new Error('Missing or mock GHN Token');
+    }
+    
+    // Call GHN Sandbox create order API
+    const url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create';
+    const response = await axios.post(
+      url,
+      {
+        payment_type_id: 2, // Buyer pays shipping
+        note: "Giao hang sieu thi Stuffy",
+        required_note: "KHONGCHOXEMHANG",
+        to_name: order.shippingAddress.address,
+        to_phone: "0909999999",
+        to_address: `${order.shippingAddress.address}, ${order.shippingAddress.city}`,
+        to_ward_code: "20308", // Ward mapping code (District 1 Ward)
+        to_district_id: 1442,
+        weight: 1000,
+        length: 10,
+        width: 10,
+        height: 10,
+        service_id: 53320,
+        pickup_time: Math.floor(Date.now() / 1000) + 3600
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Token': process.env.GHN_TOKEN,
+          'ShopId': '80000' // Sandbox shop id
+        }
+      }
+    );
+
+    if (response.data && response.data.data && response.data.data.order_code) {
+      return {
+        trackingNumber: response.data.data.order_code,
+        labelUrl: `https://dev-online-gateway.ghn.vn/a5/public-api/printA5?token=${response.data.data.order_code}`
+      };
+    }
+    throw new Error('Invalid GHN Dispatch API response');
+  }
 }
 
 // GHTK Strategy
@@ -95,6 +139,49 @@ export class GhtkStrategy implements ILogisticsStrategy {
       return Math.round((feeVnd / 25000) * 100) / 100;
     }
     throw new Error('Invalid GHTK API response structure');
+  }
+
+  public async dispatchOrderTo3PL(order: any): Promise<{ trackingNumber: string; labelUrl?: string }> {
+    if (!process.env.GHTK_TOKEN || process.env.GHTK_TOKEN === 'mock_token') {
+      throw new Error('Missing or mock GHTK Token');
+    }
+
+    const url = 'https://services-staging.ghtklab.com/services/shipment/order';
+    const response = await axios.post(
+      url,
+      {
+        products: [{ name: 'Stuffy Supermarket Product', quantity: 1, weight: 1.0 }],
+        order: {
+          id: order._id.toString(),
+          pick_name: "Stuffy Warehouse",
+          pick_money: 0,
+          pick_address: "123 Warehouse Rd",
+          pick_province: "Hồ Chí Minh",
+          pick_district: "Thủ Đức",
+          name: "Buyer Customer",
+          phone: "0909999999",
+          address: order.shippingAddress.address,
+          province: order.shippingAddress.city,
+          district: order.shippingAddress.city,
+          email: "customer@test.com",
+          value: order.totalPrice
+        }
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Token': process.env.GHTK_TOKEN
+        }
+      }
+    );
+
+    if (response.data && response.data.success && response.data.order && response.data.order.label) {
+      return {
+        trackingNumber: response.data.order.label,
+        labelUrl: `https://services-staging.ghtklab.com/admin/print/label?code=${response.data.order.label}`
+      };
+    }
+    throw new Error('Invalid GHTK Dispatch API response');
   }
 }
 
@@ -128,6 +215,44 @@ export class ViettelPostStrategy implements ILogisticsStrategy {
     }
     throw new Error('Invalid Viettel Post API response structure');
   }
+
+  public async dispatchOrderTo3PL(order: any): Promise<{ trackingNumber: string; labelUrl?: string }> {
+    if (!process.env.VIETTELPOST_TOKEN || process.env.VIETTELPOST_TOKEN === 'mock_token') {
+      throw new Error('Missing or mock Viettel Post Token');
+    }
+
+    const url = 'https://partner.viettelpost.vn/v2/order/createOrder';
+    const response = await axios.post(
+      url,
+      {
+        ORDER_NUMBER: order._id.toString(),
+        SENDER_NAME: "Stuffy Supermarket",
+        SENDER_PHONE: "0909999999",
+        SENDER_ADDRESS: "123 Warehouse Rd, Thu Duc",
+        RECEIVER_NAME: "Customer",
+        RECEIVER_PHONE: "0909999999",
+        RECEIVER_ADDRESS: order.shippingAddress.address,
+        PRODUCT_NAME: "Stuffy Goods",
+        PRODUCT_WEIGHT: 1000,
+        PRODUCT_TYPE: "HH",
+        TYPE: 1
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Token': process.env.VIETTELPOST_TOKEN
+        }
+      }
+    );
+
+    if (response.data && response.data.status === 200 && response.data.data && response.data.data.ORDER_NUMBER) {
+      return {
+        trackingNumber: response.data.data.ORDER_NUMBER,
+        labelUrl: `https://partner.viettelpost.vn/print?order=${response.data.data.ORDER_NUMBER}`
+      };
+    }
+    throw new Error('Invalid Viettel Post Dispatch API response');
+  }
 }
 
 // Logistics Strategy Factory & Orchestrator
@@ -157,6 +282,36 @@ export class LogisticsService {
     }
 
     return this.calculateMockShippingFee(input);
+  }
+
+  /**
+   * Dispatches order and registers it with the selected 3PL carrier.
+   * Returns a real tracking number from sandbox or a mock fallback tracking number.
+   */
+  public static async dispatchOrderTo3PL(carrierCode: string, order: any): Promise<{ trackingNumber: string; labelUrl?: string }> {
+    const normalizedCarrier = carrierCode.toLowerCase();
+    const strategy = this.strategies[normalizedCarrier];
+
+    if (strategy) {
+      try {
+        return await strategy.dispatchOrderTo3PL(order);
+      } catch (err: any) {
+        console.warn(`[LogisticsService] Dispatch strategy for ${normalizedCarrier} failed. Falling back to mock. Error:`, err.message);
+      }
+    } else {
+      console.warn(`[LogisticsService] No dispatch strategy found for carrier: ${normalizedCarrier}. Falling back to mock.`);
+    }
+
+    return this.dispatchMockOrder(normalizedCarrier, order);
+  }
+
+  private static dispatchMockOrder(carrierCode: string, order: any): { trackingNumber: string; labelUrl?: string } {
+    const randomSuffix = Math.floor(10000000 + Math.random() * 90000000);
+    const carrier = carrierCode.toUpperCase();
+    return {
+      trackingNumber: `STUFFY_${carrier}_${randomSuffix}`,
+      labelUrl: `https://stuffy-supermarket.com/shipping-labels/${carrierCode}/${order._id}.pdf`
+    };
   }
 
   private static calculateMockShippingFee(input: ICalculateShippingInput): number {

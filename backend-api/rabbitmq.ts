@@ -1,6 +1,9 @@
 import amqp from 'amqplib';
+import { EventEmitter } from 'events';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://stuffy:stuffyypass@localhost:5672';
+const fallbackEmitter = new EventEmitter();
+let isFallbackMode = false;
 
 let channel: any;
 let connection: any;
@@ -45,7 +48,14 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
         });
     } catch (err: any) {
         if (retryCount >= MAX_RETRIES) {
-            console.error(`[RabbitMQ] Failed to connect after ${MAX_RETRIES} retries. Giving up.`);
+            console.error(`[RabbitMQ] Failed to connect after ${MAX_RETRIES} retries. Activating in-memory fallback.`);
+            isFallbackMode = true;
+            // Replay any pending subscriptions to fallbackEmitter
+            for (const sub of pendingSubscriptions) {
+                fallbackEmitter.on(sub.queue, (content) => {
+                    sub.callback(content);
+                });
+            }
             return;
         }
         const delay = Math.min(INITIAL_DELAY_MS * Math.pow(2, retryCount), 30000);
@@ -57,6 +67,13 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
 
 export const pubsub = {
     publish: (queue: string, message: any) => {
+        if (isFallbackMode) {
+            console.log(`[RabbitMQ Fallback] Publishing message to ${queue}`);
+            setTimeout(() => {
+                fallbackEmitter.emit(queue, message);
+            }, 50);
+            return;
+        }
         if (!channel) {
             console.error(`[RabbitMQ] Channel not initialized. Cannot publish to ${queue}`);
             return;
@@ -67,6 +84,12 @@ export const pubsub = {
     
     subscribe: (queue: string, callback: (msg: any) => void) => {
         pendingSubscriptions.push({ queue, callback });
+        if (isFallbackMode) {
+            fallbackEmitter.on(queue, (content) => {
+                callback(content);
+            });
+            return;
+        }
         if (!channel) {
             console.error(`[RabbitMQ] Channel not initialized yet. Subscription to ${queue} will replay on connect.`);
             return;
