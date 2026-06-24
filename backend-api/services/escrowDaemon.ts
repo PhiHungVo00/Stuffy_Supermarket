@@ -60,10 +60,18 @@ export class EscrowDaemon {
       let processedCount = 0;
 
       for (const order of expiredOrders) {
-        // Update order status
-        order.escrowStatus = 'released';
-        order.escrowReleasedAt = new Date();
-        await order.save();
+        // 🔒 SECURITY FIX: Escrow Double Payout Race Condition (Daemon)
+        const lockedOrder = await Order.findOneAndUpdate(
+          { _id: order._id, escrowStatus: 'held' },
+          { $set: { escrowStatus: 'released', escrowReleasedAt: new Date() } },
+          { new: true }
+        );
+
+        // If lockedOrder is null, another process already released/refunded it
+        if (!lockedOrder) {
+          console.log(`[EscrowDaemon] Skip order ${order._id}: already processed by another thread.`);
+          continue;
+        }
 
         // 🔒 SECURITY FIX: Escrow Lost Update (Daemon Auto-Release)
         await SellerWallet.findOneAndUpdate(

@@ -869,27 +869,33 @@ router.put('/:id/status', protect, authorize('admin', 'seller'), async (req: any
 // Confirm Order Received & Release Escrow
 router.put('/:id/receive', protect, async (req: any, res: Response) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      res.status(404).json({ error: 'Order not found' });
-      return;
-    }
-    if (order.user.toString() !== req.user._id.toString()) {
-      res.status(401).json({ error: 'Not authorized to confirm this order' });
-      return;
-    }
-    if (order.status !== 'Delivered') {
-      res.status(400).json({ error: 'Order must be delivered before confirming receipt' });
-      return;
-    }
-    if (order.escrowStatus !== 'held') {
-      res.status(400).json({ error: `Order escrow is already in ${order.escrowStatus} status` });
-      return;
-    }
+    // 🔒 SECURITY FIX: Escrow Double Payout Race Condition
+    // Lock the escrow status atomically using findOneAndUpdate to prevent parallel execution
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        user: req.user._id,
+        status: 'Delivered',
+        escrowStatus: 'held'
+      },
+      {
+        $set: {
+          escrowStatus: 'released',
+          escrowReleasedAt: new Date()
+        }
+      },
+      { new: true }
+    );
 
-    order.escrowStatus = 'released';
-    order.escrowReleasedAt = new Date();
-    await order.save();
+    if (!order) {
+      // Find out why it failed for a better error message
+      const existingOrder = await Order.findById(req.params.id);
+      if (!existingOrder) return res.status(404).json({ error: 'Order not found' });
+      if (existingOrder.user.toString() !== req.user._id.toString()) return res.status(401).json({ error: 'Not authorized' });
+      if (existingOrder.status !== 'Delivered') return res.status(400).json({ error: 'Order must be delivered before confirming receipt' });
+      if (existingOrder.escrowStatus !== 'held') return res.status(400).json({ error: `Order escrow is already in ${existingOrder.escrowStatus} status` });
+      return res.status(400).json({ error: 'Unable to process receipt confirmation' });
+    }
 
     // 🔒 SECURITY FIX: Escrow Lost Update (Release)
     await SellerWallet.findOneAndUpdate(
@@ -924,27 +930,32 @@ router.post('/:id/refund-request', protect, async (req: any, res: Response) => {
   }
 
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      res.status(404).json({ error: 'Order not found' });
-      return;
-    }
-    if (order.user.toString() !== req.user._id.toString()) {
-      res.status(401).json({ error: 'Not authorized to request refund for this order' });
-      return;
-    }
-    if (order.status !== 'Delivered' && order.status !== 'Shipped') {
-      res.status(400).json({ error: 'Refunds can only be requested for shipped or delivered orders' });
-      return;
-    }
-    if (order.escrowStatus !== 'held') {
-      res.status(400).json({ error: `Order escrow is already in ${order.escrowStatus} status` });
-      return;
-    }
+    // 🔒 SECURITY FIX: Escrow Double Refund Race Condition
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        user: req.user._id,
+        status: { $in: ['Shipped', 'Delivered'] },
+        escrowStatus: 'held'
+      },
+      {
+        $set: {
+          escrowStatus: 'disputed',
+          returnRequestReason: reason
+        }
+      },
+      { new: true }
+    );
 
-    order.escrowStatus = 'disputed';
-    order.returnRequestReason = reason;
-    await order.save();
+    if (!order) {
+      // Find out why it failed
+      const existingOrder = await Order.findById(req.params.id);
+      if (!existingOrder) return res.status(404).json({ error: 'Order not found' });
+      if (existingOrder.user.toString() !== req.user._id.toString()) return res.status(401).json({ error: 'Not authorized' });
+      if (existingOrder.status !== 'Delivered' && existingOrder.status !== 'Shipped') return res.status(400).json({ error: 'Refunds can only be requested for shipped or delivered orders' });
+      if (existingOrder.escrowStatus !== 'held') return res.status(400).json({ error: `Order escrow is already in ${existingOrder.escrowStatus} status` });
+      return res.status(400).json({ error: 'Unable to process refund request' });
+    }
 
     res.json({ message: 'Dispute submitted. Escrow funds locked.', order });
   } catch (err: any) {
