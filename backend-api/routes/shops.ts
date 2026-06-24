@@ -111,17 +111,11 @@ router.get('/mine/wallet', protect, async (req: any, res: Response) => {
       return res.status(404).json({ error: 'Shop not found for this seller' });
     }
 
-    let wallet = await SellerWallet.findOne({ shopId: shop._id });
-    if (!wallet) {
-      wallet = new SellerWallet({
-        shopId: shop._id,
-        balance: 0,
-        pendingEscrow: 0,
-        currency: 'USD',
-        transactions: []
-      });
-      await wallet.save();
-    }
+    let wallet = await SellerWallet.findOneAndUpdate(
+      { shopId: shop._id },
+      {},
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     res.json(wallet);
   } catch (error: any) {

@@ -65,31 +65,23 @@ export class EscrowDaemon {
         order.escrowReleasedAt = new Date();
         await order.save();
 
-        // Update seller wallet
-        let wallet = await SellerWallet.findOne({ shopId: order.shop });
-        if (!wallet) {
-          wallet = new SellerWallet({
-            shopId: order.shop,
-            balance: 0,
-            pendingEscrow: 0,
-            currency: 'USD',
-            transactions: []
-          });
-        }
-
-        // Adjust escrow & balance safely
-        wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-        wallet.balance = Math.round((wallet.balance + order.totalPrice) * 100) / 100;
-        
-        wallet.transactions.push({
-          amount: order.totalPrice,
-          type: 'escrow_payout',
-          description: `Auto-released escrow (expired after ${expiryDays} days) for order ${order._id}`,
-          orderId: order._id,
-          createdAt: new Date()
-        });
-
-        await wallet.save();
+        // 🔒 SECURITY FIX: Escrow Lost Update (Daemon Auto-Release)
+        await SellerWallet.findOneAndUpdate(
+          { shopId: order.shop },
+          {
+            $inc: { pendingEscrow: -order.totalPrice, balance: order.totalPrice },
+            $push: {
+              transactions: {
+                amount: order.totalPrice,
+                type: 'escrow_payout',
+                description: `Auto-released escrow (expired after ${expiryDays} days) for order ${order._id}`,
+                orderId: order._id,
+                createdAt: new Date()
+              }
+            }
+          },
+          { upsert: true, setDefaultsOnInsert: true }
+        );
         console.log(`[EscrowDaemon] Released escrow for order ${order._id} ($${order.totalPrice}) to shop ${order.shop}`);
         processedCount++;
       }

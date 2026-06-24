@@ -183,29 +183,46 @@ router.post('/webhook', async (req: any, res: Response) => {
     });
 
     // Map 3PL status to Order status
+    let newStatus = order.status;
     if (carrierStatus === 'PICKED_UP' || carrierStatus === 'IN_TRANSIT') {
-      order.status = 'Shipped';
+      newStatus = 'Shipped';
     } else if (carrierStatus === 'CANCELED') {
-      order.status = 'Canceled';
+      newStatus = 'Canceled';
     } else if (carrierStatus === 'DELIVERED') {
-      order.status = 'Delivered';
-      order.deliveredAt = new Date();
-      order.isPaid = true;
+      newStatus = 'Delivered';
+    }
 
-      // Earn Coins Logic (payout to buyer) if order just became delivered
-      if (previousStatus !== 'Delivered') {
-        const coinsEarned = order.coinsEarned || 0;
-        if (coinsEarned > 0) {
-          await User.findByIdAndUpdate(order.user, { $inc: { coinsBalance: coinsEarned } });
-          await CoinTransaction.findOneAndUpdate(
-            { orderId: order._id, type: 'earn' },
-            { isCredited: true }
-          );
-        }
+    // 🔒 SECURITY FIX: Prevent Webhook Replay Attack
+    let isFirstTimeDelivered = false;
+    if (newStatus === 'Delivered' && order.status !== 'Delivered') {
+      const updatedOrder = await Order.findOneAndUpdate(
+        { _id: order._id, status: { $ne: 'Delivered' } },
+        { status: 'Delivered', deliveredAt: new Date(), isPaid: true },
+        { new: true }
+      );
+      if (updatedOrder) {
+        isFirstTimeDelivered = true;
       }
     }
 
+    order.status = newStatus;
+    if (newStatus === 'Delivered') {
+      order.deliveredAt = order.deliveredAt || new Date();
+      order.isPaid = true;
+    }
+
     await order.save();
+
+    if (isFirstTimeDelivered) {
+      const coinsEarned = order.coinsEarned || 0;
+      if (coinsEarned > 0) {
+        await User.findByIdAndUpdate(order.user, { $inc: { coinsBalance: coinsEarned } });
+        await CoinTransaction.findOneAndUpdate(
+          { orderId: order._id, type: 'earn' },
+          { isCredited: true }
+        );
+      }
+    }
 
     const io = req.app.get('io');
     if (io) {

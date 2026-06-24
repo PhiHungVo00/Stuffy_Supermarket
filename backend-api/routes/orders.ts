@@ -835,18 +835,22 @@ router.put('/:id/status', protect, authorize('admin', 'seller'), async (req: any
       // Escrow Refund: if escrow is currently held, release it back to refund status
       if (order.escrowStatus === 'held') {
         order.escrowStatus = 'refunded';
-        const wallet = await SellerWallet.findOne({ shopId: order.shop });
-        if (wallet) {
-          wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-          wallet.transactions.push({
-            amount: -order.totalPrice,
-            type: 'refund',
-            description: `Escrow refunded for canceled order ${order._id}`,
-            orderId: order._id,
-            createdAt: new Date()
-          });
-          await wallet.save();
-        }
+        // 🔒 SECURITY FIX: Escrow Lost Update (Refund)
+        await SellerWallet.findOneAndUpdate(
+          { shopId: order.shop },
+          {
+            $inc: { pendingEscrow: -order.totalPrice },
+            $push: {
+              transactions: {
+                amount: -order.totalPrice,
+                type: 'refund',
+                description: `Escrow refunded for canceled order ${order._id}`,
+                orderId: order._id,
+                createdAt: new Date()
+              }
+            }
+          }
+        );
       }
     }
 
@@ -882,27 +886,23 @@ router.put('/:id/receive', protect, async (req: any, res: Response) => {
     order.escrowReleasedAt = new Date();
     await order.save();
 
-    let wallet = await SellerWallet.findOne({ shopId: order.shop });
-    if (!wallet) {
-      wallet = new SellerWallet({
-        shopId: order.shop,
-        balance: 0,
-        pendingEscrow: 0,
-        currency: 'USD',
-        transactions: []
-      });
-    }
-
-    wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-    wallet.balance = Math.round((wallet.balance + order.totalPrice) * 100) / 100;
-    wallet.transactions.push({
-      amount: order.totalPrice,
-      type: 'escrow_payout',
-      description: `Escrow payout released for order ${order._id}`,
-      orderId: order._id,
-      createdAt: new Date()
-    });
-    await wallet.save();
+    // 🔒 SECURITY FIX: Escrow Lost Update (Release)
+    await SellerWallet.findOneAndUpdate(
+      { shopId: order.shop },
+      {
+        $inc: { pendingEscrow: -order.totalPrice, balance: order.totalPrice },
+        $push: {
+          transactions: {
+            amount: order.totalPrice,
+            type: 'escrow_payout',
+            description: `Escrow payout released for order ${order._id}`,
+            orderId: order._id,
+            createdAt: new Date()
+          }
+        }
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
 
     res.json({ message: 'Order received and funds released to seller wallet', order });
   } catch (err: any) {
@@ -978,18 +978,22 @@ router.put('/:id/dispute/respond', protect, async (req: any, res: Response) => {
       await order.save();
 
       // Escrow Refund: subtract from seller wallet pendingEscrow and refund buyer
-      const wallet = await SellerWallet.findOne({ shopId: order.shop });
-      if (wallet) {
-        wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-        wallet.transactions.push({
-          amount: -order.totalPrice,
-          type: 'refund',
-          description: `Dispute accepted by seller. Escrow refunded to buyer.`,
-          orderId: order._id,
-          createdAt: new Date()
-        });
-        await wallet.save();
-      }
+      // 🔒 SECURITY FIX: Escrow Lost Update (Dispute Accepted -> Refund)
+      await SellerWallet.findOneAndUpdate(
+        { shopId: order.shop },
+        {
+          $inc: { pendingEscrow: -order.totalPrice },
+          $push: {
+            transactions: {
+              amount: -order.totalPrice,
+              type: 'refund',
+              description: `Dispute accepted by seller. Escrow refunded to buyer.`,
+              orderId: order._id,
+              createdAt: new Date()
+            }
+          }
+        }
+      );
 
       // Rollback products stock
       for (const item of order.orderItems) {
@@ -1052,18 +1056,22 @@ router.put('/:id/dispute/resolve', protect, admin, async (req: any, res: Respons
       await order.save();
 
       // Escrow Refund: subtract from seller wallet pendingEscrow and refund buyer
-      const wallet = await SellerWallet.findOne({ shopId: order.shop });
-      if (wallet) {
-        wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-        wallet.transactions.push({
-          amount: -order.totalPrice,
-          type: 'refund',
-          description: `Dispute resolved by admin: refund to buyer.`,
-          orderId: order._id,
-          createdAt: new Date()
-        });
-        await wallet.save();
-      }
+      // 🔒 SECURITY FIX: Escrow Lost Update (Admin Refund)
+      await SellerWallet.findOneAndUpdate(
+        { shopId: order.shop },
+        {
+          $inc: { pendingEscrow: -order.totalPrice },
+          $push: {
+            transactions: {
+              amount: -order.totalPrice,
+              type: 'refund',
+              description: `Dispute resolved by admin: refund to buyer.`,
+              orderId: order._id,
+              createdAt: new Date()
+            }
+          }
+        }
+      );
 
       // Rollback products stock
       for (const item of order.orderItems) {
@@ -1097,27 +1105,23 @@ router.put('/:id/dispute/resolve', protect, admin, async (req: any, res: Respons
       order.escrowReleasedAt = new Date();
       await order.save();
 
-      let wallet = await SellerWallet.findOne({ shopId: order.shop });
-      if (!wallet) {
-        wallet = new SellerWallet({
-          shopId: order.shop,
-          balance: 0,
-          pendingEscrow: 0,
-          currency: 'USD',
-          transactions: []
-        });
-      }
-
-      wallet.pendingEscrow = Math.max(0, Math.round((wallet.pendingEscrow - order.totalPrice) * 100) / 100);
-      wallet.balance = Math.round((wallet.balance + order.totalPrice) * 100) / 100;
-      wallet.transactions.push({
-        amount: order.totalPrice,
-        type: 'escrow_payout',
-        description: `Dispute resolved by admin: escrow payout released to seller wallet`,
-        orderId: order._id,
-        createdAt: new Date()
-      });
-      await wallet.save();
+      // 🔒 SECURITY FIX: Escrow Lost Update (Admin Release)
+      await SellerWallet.findOneAndUpdate(
+        { shopId: order.shop },
+        {
+          $inc: { pendingEscrow: -order.totalPrice, balance: order.totalPrice },
+          $push: {
+            transactions: {
+              amount: order.totalPrice,
+              type: 'escrow_payout',
+              description: `Dispute resolved by admin: escrow payout released to seller wallet`,
+              orderId: order._id,
+              createdAt: new Date()
+            }
+          }
+        },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
 
       return res.json({ message: 'Dispute resolved: escrow funds released to seller wallet', order });
     }
