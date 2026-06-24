@@ -94,10 +94,12 @@ connectRabbitMQ().then(() => {
   });
 }).catch(console.error);
 
-Sentry.init({
-  dsn: "https://your-dsn-here@o0.ingest.sentry.io/0", // Replace with real Sentry DSN
-  tracesSampleRate: 1.0,
-});
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+  });
+}
 
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
