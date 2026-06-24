@@ -48,7 +48,7 @@ jobs:
           cache: 'npm'
 
       - name: Cài đặt dependencies
-        run: npm ci
+        run: npm install
 
       - name: Linter Code
         run: npx turbo run lint
@@ -90,6 +90,7 @@ jobs:
             support-app: 'support-app/**'
             image-service: 'image-service/**'
             recommendation-service: 'recommendation-service/**'
+            auth-service: 'auth-service/**'
             graphql-gateway: 'graphql-gateway/**'
 
   build-and-push-dockerhub:
@@ -161,6 +162,7 @@ jobs:
           HOOK_support-app: ${{ secrets.RENDER_DEPLOY_HOOK_SUPPORT }}
           HOOK_image-service: ${{ secrets.RENDER_DEPLOY_HOOK_IMAGE }}
           HOOK_recommendation-service: ${{ secrets.RENDER_DEPLOY_HOOK_RECOM }}
+          HOOK_auth-service: ${{ secrets.RENDER_DEPLOY_HOOK_AUTH }}
           HOOK_graphql-gateway: ${{ secrets.RENDER_DEPLOY_HOOK_GATEWAY }}
         run: |
           echo "Changed apps: $APPS_JSON"
