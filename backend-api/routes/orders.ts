@@ -186,23 +186,33 @@ router.post('/', protect, async (req: any, res: Response) => {
     }
 
     // 4. Retrieve Vouchers if passed
+    // 🔒 SECURITY FIX: Prevent Infinite Voucher Usage and Expired Vouchers
+    const getVoucherQuery = (code: string, extraConditions: any) => ({
+      code: code.toUpperCase(),
+      isActive: true,
+      expiresAt: { $gt: new Date() },
+      $expr: { $lt: ['$usedCount', '$usageLimit'] },
+      claimedBy: { $ne: req.user._id }, // Prevent same user from using it multiple times
+      ...extraConditions
+    });
+
     let platformVoucher: any = null;
     if (voucherCode) {
-      platformVoucher = await Voucher.findOne({ code: voucherCode.toUpperCase(), isActive: true, scope: 'platform' });
+      platformVoucher = await Voucher.findOne(getVoucherQuery(voucherCode, { scope: 'platform' }));
       if (platformVoucher && platformVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
         return res.status(400).json({ error: `Voucher ${voucherCode} is only valid for purchases from livestream` });
       }
     }
     let shopVoucher: any = null;
     if (req.body.shopVoucherCode) {
-      shopVoucher = await Voucher.findOne({ code: req.body.shopVoucherCode.toUpperCase(), isActive: true, scope: 'shop' });
+      shopVoucher = await Voucher.findOne(getVoucherQuery(req.body.shopVoucherCode, { scope: 'shop' }));
       if (shopVoucher && shopVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
         return res.status(400).json({ error: `Voucher ${req.body.shopVoucherCode} is only valid for purchases from livestream` });
       }
     }
     let shippingVoucher: any = null;
     if (shippingVoucherCode) {
-      shippingVoucher = await Voucher.findOne({ code: shippingVoucherCode.toUpperCase(), isActive: true, scope: 'platform', type: 'shipping' });
+      shippingVoucher = await Voucher.findOne(getVoucherQuery(shippingVoucherCode, { scope: 'platform', type: 'shipping' }));
       if (shippingVoucher && shippingVoucher.isLivestreamExclusive && !req.body.fromLivestream) {
         return res.status(400).json({ error: `Voucher ${shippingVoucherCode} is only valid for purchases from livestream` });
       }
@@ -438,6 +448,22 @@ router.post('/', protect, async (req: any, res: Response) => {
       await session.withTransaction(async () => {
         // Reset trạng thái tích lũy để an toàn khi withTransaction retry
         createdOrders = [];
+
+        // 🔒 SECURITY FIX: Atomic Voucher Usage Tracking
+        const vouchersToUpdate = [platformVoucher, shopVoucher, shippingVoucher]
+          .filter(v => v)
+          .filter((v, index, self) => self.findIndex(t => t._id.toString() === v._id.toString()) === index);
+        
+        for (const voucher of vouchersToUpdate) {
+          const updated = await Voucher.findOneAndUpdate(
+            { _id: voucher._id, $expr: { $lt: ['$usedCount', '$usageLimit'] } },
+            { $inc: { usedCount: 1 }, $push: { claimedBy: req.user._id } },
+            { session, new: true }
+          );
+          if (!updated) {
+            throw new Error(`Voucher ${voucher.code} is no longer available or usage limit reached.`);
+          }
+        }
 
         // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
         if (coinsToRedeem > 0) {
