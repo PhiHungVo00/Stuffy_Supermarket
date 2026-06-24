@@ -47,6 +47,8 @@ const translations = {
     seller_info: "Seller Info",
     rating: "rating",
     view_shop: "View Shop",
+    chat_now: "Chat Now",
+    login_to_chat: "Please log in to chat with the seller.",
     custom_accent_color: "Custom Accent Color",
     select_variant: "Select Variant",
     out_of_stock: "Out of Stock",
@@ -88,6 +90,7 @@ const translations = {
     shop_discounts: "Shop Discounts",
     wheel_discount: "Wheel Discount",
     platform_discount: "Platform Discount",
+    shipping_discount: "Shipping Discount",
     coins_redeemed: "Coins Redeemed",
     tax: "Tax (0%)",
     shipping_total: "Shipping (Total)",
@@ -179,9 +182,10 @@ const translations = {
     expired: "Expired",
     claimed: "Claimed ✓",
     claim_now: "Claim Now",
-    desc_banner: "A modern commerce platform built on Micro Frontends architecture with real-time data synchronization.",
-    mfe_modules: "9 MFE Modules",
-    platform_tech: "Socket.IO · MongoDB · Docker",
+    desc_banner: "Your premier destination for high-quality tech gear and workspace essentials. We offer authentic products, exclusive deals, and fast shipping.",
+    mfe_modules: "Exclusive Deals",
+    platform_tech: "Express Shipping",
+    brand_badge: "TRUSTED BRAND",
     cooldown_msg: "AI on cooldown — retry in {seconds}s",
     ai_analyzing: "AI is analyzing...",
     ask_ai_placeholder: 'Ask AI: "Set up a home office"...',
@@ -310,6 +314,11 @@ const translations = {
     bot_comment_7: "Super beautiful design",
     bot_comment_8: "Which carrier handles shipping?",
     bot_comment_9: "GHN shipping is very fast here.",
+    select_payment_method: "Select Payment Method",
+    credit_card: "Credit Card (Stripe)",
+    vietqr: "VietQR Bank Transfer (PayOS)",
+    pay_vietqr: "Pay via VietQR",
+    generating_qr: "Generating VietQR Payment Link...",
   },
   vi: {
     welcome: "Chào mừng đến với Stuffy Supermarket",
@@ -398,6 +407,7 @@ const translations = {
     shop_discounts: "Khuyến mãi cửa hàng",
     wheel_discount: "Khuyến mãi vòng quay",
     platform_discount: "Khuyến mãi hệ thống",
+    shipping_discount: "Giảm giá vận chuyển",
     coins_redeemed: "Đã đổi xu",
     tax: "Thuế (0%)",
     shipping_total: "Tổng phí vận chuyển",
@@ -425,6 +435,11 @@ const translations = {
     back: "Quay lại",
     pay: "Thanh toán",
     processing_stripe: "Đang xử lý qua Stripe...",
+    select_payment_method: "Chọn phương thức thanh toán",
+    credit_card: "Thẻ Quốc tế (Stripe)",
+    vietqr: "Chuyển khoản VietQR (PayOS)",
+    pay_vietqr: "Thanh toán qua VietQR",
+    generating_qr: "Đang tạo mã thanh toán VietQR...",
     spin_and_win: "Quay là Trúng",
     one_free_spin: "Một lượt quay miễn phí cho đơn hàng trị giá ${total}!",
     better_luck: "Chúc bạn may mắn lần sau!",
@@ -489,9 +504,10 @@ const translations = {
     expired: "Đã hết hạn",
     claimed: "Đã nhận ✓",
     claim_now: "Nhận ngay",
-    desc_banner: "Một nền tảng thương mại hiện đại được xây dựng trên kiến trúc Micro Frontend với khả năng đồng bộ dữ liệu thời gian thực.",
-    mfe_modules: "9 Mô-đun MFE",
-    platform_tech: "Socket.IO · MongoDB · Docker",
+    desc_banner: "Nơi mua sắm đồ công nghệ và thiết bị làm việc chất lượng hàng đầu. Chúng tôi cung cấp các sản phẩm chính hãng, ưu đãi độc quyền cùng dịch vụ giao hàng nhanh chóng.",
+    mfe_modules: "Ưu đãi hấp dẫn",
+    platform_tech: "Giao hàng siêu tốc",
+    brand_badge: "THƯƠNG HIỆU UY TÍN",
     search_placeholder: "Tìm kiếm đồ công nghệ...",
     add_to_cart: "Thêm vào giỏ",
     view_details: "Xem chi tiết",
@@ -535,6 +551,8 @@ const translations = {
     seller_info: "Thông tin người bán",
     rating: "đánh giá",
     view_shop: "Xem cửa hàng",
+    chat_now: "Chat ngay",
+    login_to_chat: "Vui lòng đăng nhập để trò chuyện với người bán.",
     custom_accent_color: "Màu sắc tùy chỉnh",
     select_variant: "Chọn phiên bản",
     out_of_stock: "Hết hàng",
@@ -576,6 +594,7 @@ const translations = {
     shop_discounts: "Khuyến mãi cửa hàng",
     wheel_discount: "Khuyến mãi vòng quay",
     platform_discount: "Khuyến mãi hệ thống",
+    shipping_discount: "Giảm giá vận chuyển",
     coins_redeemed: "Đã đổi xu",
     tax: "Thuế (0%)",
     shipping_total: "Tổng phí vận chuyển",
@@ -667,9 +686,10 @@ const translations = {
     expired: "Đã hết hạn",
     claimed: "Đã nhận ✓",
     claim_now: "Nhận ngay",
-    desc_banner: "Một nền tảng thương mại hiện đại được xây dựng trên kiến trúc Micro Frontend với khả năng đồng bộ dữ liệu thời gian thực.",
-    mfe_modules: "9 Mô-đun MFE",
-    platform_tech: "Socket.IO · MongoDB · Docker",
+    desc_banner: "Nơi mua sắm đồ công nghệ và thiết bị làm việc chất lượng hàng đầu. Chúng tôi cung cấp các sản phẩm chính hãng, ưu đãi độc quyền cùng dịch vụ giao hàng nhanh chóng.",
+    mfe_modules: "Ưu đãi hấp dẫn",
+    platform_tech: "Giao hàng siêu tốc",
+    brand_badge: "THƯƠNG HIỆU UY TÍN",
     cooldown_msg: "AI đang hồi chiêu — thử lại sau {seconds} giây",
     ai_analyzing: "AI đang phân tích...",
     ask_ai_placeholder: 'Hỏi AI: "Cấu hình góc làm việc tại nhà"...',
@@ -801,25 +821,55 @@ const translations = {
   }
 };
 
+const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
+const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+
 interface I18nState {
   lang: 'en' | 'vi';
+  dynamicTranslations: Record<'en' | 'vi', Record<string, string>>;
   setLang: (lang: 'en' | 'vi') => void;
-  t: (key: keyof typeof translations['en'], params?: Record<string, string | number>) => string;
+  loadTranslations: (lang: 'en' | 'vi') => Promise<void>;
+  t: (key: keyof typeof translations['en'] | string, params?: Record<string, string | number>) => string;
 }
 
 export const useI18nStore = create<I18nState>((set, get) => ({
   // Default to 'vi' (Vietnamese) to prioritize Vietnamese localization
   lang: (localStorage.getItem('stuffy_lang') as 'en' | 'vi') || 'vi',
+  dynamicTranslations: { en: {}, vi: {} },
   
   setLang: (lang) => {
     localStorage.setItem('stuffy_lang', lang);
     set({ lang });
+    get().loadTranslations(lang);
     window.dispatchEvent(new CustomEvent('STUFFY_LANG_CHANGED', { detail: lang }));
   },
 
+  loadTranslations: async (lang) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/localization/${lang}`, {
+        headers: {
+          'x-tenant-id': 'default_store'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        set((state) => ({
+          dynamicTranslations: {
+            ...state.dynamicTranslations,
+            [lang]: data
+          }
+        }));
+      } else {
+        console.warn(`[i18n] Failed to load translations for ${lang}. Falling back to static translations.`);
+      }
+    } catch (err) {
+      console.warn(`[i18n] Error loading translations for ${lang}:`, err, 'Falling back to static translations.');
+    }
+  },
+
   t: (key, params) => {
-    const { lang } = get();
-    let text = translations[lang]?.[key] || translations['en']?.[key] || String(key);
+    const { lang, dynamicTranslations } = get();
+    let text = dynamicTranslations[lang]?.[key] || translations[lang]?.[key] || translations['en']?.[key] || String(key);
     
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -834,6 +884,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('STUFFY_LANG_CHANGED', (e: any) => {
     if (e.detail && useI18nStore.getState().lang !== e.detail) {
       useI18nStore.setState({ lang: e.detail });
+      useI18nStore.getState().loadTranslations(e.detail);
     }
   });
+
+  // Auto-load translations on client load
+  setTimeout(() => {
+    const currentLang = useI18nStore.getState().lang;
+    useI18nStore.getState().loadTranslations(currentLang);
+  }, 0);
 }

@@ -17,9 +17,11 @@
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.2",
     "@babel/preset-react": "^7.28.5",
-    "babel-loader": "^10.1.1",
-    "html-webpack-plugin": "^5.6.6",
     "@preact/signals-react": "^3.10.1",
+    "@stuffy/design-system": "*",
+    "babel-loader": "^10.1.1",
+    "hls.js": "^1.6.16",
+    "html-webpack-plugin": "^5.6.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",
@@ -34,6 +36,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.34.0",
     "prettier": "^3.2.0",
-    "style-loader": "^4.0.0"
+    "style-loader": "^4.0.0",
+    "typescript": "^5.4.5"
   }
 }

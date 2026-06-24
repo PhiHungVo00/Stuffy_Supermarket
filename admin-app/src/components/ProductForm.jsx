@@ -5,6 +5,7 @@ const ProductForm = ({ onAdd, onUpdate, editing }) => {
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Laptops");
+  const [weight, setWeight] = useState(200);
 
   useEffect(() => {
     if (editing) {
@@ -12,6 +13,7 @@ const ProductForm = ({ onAdd, onUpdate, editing }) => {
       setPrice(editing.price);
       setDescription(editing.description || "");
       setCategory(editing.category || "Laptops");
+      setWeight(editing.weight || 200);
     }
   }, [editing]);
 
@@ -34,6 +36,7 @@ const ProductForm = ({ onAdd, onUpdate, editing }) => {
     setPrice("");
     setDescription("");
     setCategory("Laptops");
+    setWeight(200);
   };
 
   const inputStyle = {
@@ -78,6 +81,15 @@ const ProductForm = ({ onAdd, onUpdate, editing }) => {
           value={description}
           onChange={e => setDescription(e.target.value)}
           style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+        />
+
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-muted)' }}>Weight (grams)</label>
+        <input
+          placeholder="e.g. 200"
+          value={weight}
+          type="number"
+          onChange={e => setWeight(e.target.value)}
+          style={inputStyle}
         />
 
         <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.88rem', fontWeight: '600', color: 'var(--text-muted)' }}>Category</label>

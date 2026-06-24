@@ -33,9 +33,10 @@ export default function WishlistPage() {
             onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)'; }}
           >
             <div style={{ position: 'relative', background: '#f8fafc', padding: '20px', textAlign: 'center' }}>
-              <img src={product.image} alt={product.name} style={{ width: '140px', height: '140px', objectFit: 'contain' }} />
+              <img src={product.image} alt={product.name} loading="lazy" decoding="async" style={{ width: '140px', height: '140px', objectFit: 'contain' }} />
               <button
                 onClick={() => toggleWishlist(product)}
+                aria-label="Xóa khỏi danh sách yêu thích"
                 style={{ position: 'absolute', top: '12px', right: '12px', background: 'white', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
               >
                 ❤️

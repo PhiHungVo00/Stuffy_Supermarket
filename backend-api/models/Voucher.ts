@@ -16,6 +16,7 @@ export interface IVoucher extends Document {
   tenantId: string;
   scope: 'platform' | 'shop';
   shopId?: mongoose.Types.ObjectId;
+  isLivestreamExclusive?: boolean;
 }
 
 const voucherSchema = new Schema<IVoucher>({
@@ -33,7 +34,8 @@ const voucherSchema = new Schema<IVoucher>({
   isActive: { type: Boolean, default: true },
   tenantId: { type: String, required: true, default: 'default_store' },
   scope: { type: String, enum: ['platform', 'shop'], default: 'shop' },
-  shopId: { type: Schema.Types.ObjectId, ref: 'Shop' }
+  shopId: { type: Schema.Types.ObjectId, ref: 'Shop' },
+  isLivestreamExclusive: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.model<IVoucher>('Voucher', voucherSchema);

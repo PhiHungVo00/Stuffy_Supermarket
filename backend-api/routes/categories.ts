@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
-    const categories = await Category.find({ tenantId }).sort({ level: 1, name: 1 });
+    const categories = await Category.find({ tenantId }).read('secondaryPreferred').sort({ level: 1, name: 1 });
 
     const buildTree = (cats: any[], parentId: string | null = null): any[] => {
       return cats
@@ -40,7 +40,7 @@ router.post('/', protect, admin, async (req: any, res: Response) => {
 
     let level = 0;
     if (parent) {
-      const parentCat = await Category.findById(parent);
+      const parentCat = await Category.findById(parent).read('secondaryPreferred');
       if (parentCat) level = parentCat.level + 1;
     }
 
@@ -56,7 +56,7 @@ router.post('/', protect, admin, async (req: any, res: Response) => {
 
 router.put('/:id', protect, admin, async (req: any, res: Response) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id).read('secondaryPreferred');
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     const { name, slug, parent, image } = req.body;
@@ -67,7 +67,7 @@ router.put('/:id', protect, admin, async (req: any, res: Response) => {
     if (parent !== undefined) {
       category.parent = parent || null;
       if (parent) {
-        const parentCat = await Category.findById(parent);
+        const parentCat = await Category.findById(parent).read('secondaryPreferred');
         category.level = parentCat ? parentCat.level + 1 : 0;
       } else {
         category.level = 0;
@@ -83,11 +83,11 @@ router.put('/:id', protect, admin, async (req: any, res: Response) => {
 
 router.delete('/:id', protect, admin, async (req: any, res: Response) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id).read('secondaryPreferred');
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     const collectDescendantIds = async (parentId: string): Promise<string[]> => {
-      const children = await Category.find({ parent: parentId }).select('_id');
+      const children = await Category.find({ parent: parentId }).read('secondaryPreferred').select('_id');
       let ids: string[] = children.map(c => String(c._id));
       for (const child of children) {
         const grandChildren = await collectDescendantIds(String(child._id));

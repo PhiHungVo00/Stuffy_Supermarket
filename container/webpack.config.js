@@ -1,4 +1,4 @@
-﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const { GenerateSW } = require('workbox-webpack-plugin');
 const CopyWebpackPlugin = require("copy-webpack-plugin");
@@ -95,6 +95,7 @@ module.exports = {
       patterns: [
         { from: "public/config.json", to: "." },
         { from: "public/favicon.ico", to: ".", noErrorOnMissing: true },
+        { from: "public/push-sw.js", to: "." },
       ],
     }),
 

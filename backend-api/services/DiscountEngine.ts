@@ -1,5 +1,7 @@
+/// <reference path="../declarations.d.ts" />
 import jsonLogic from 'json-logic-js';
 import DiscountRule, { IDiscountRule } from '../models/DiscountRule';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 export interface CartData {
   total: number;
@@ -75,15 +77,22 @@ export class DiscountEngine {
     totalDiscount: number;
     priceFloorAdjusted: boolean;
   } {
-    const { items, activePromotions, shopVoucher, platformVoucher, totalPlatformItemsPrice } = input;
-    
-    // Create deep copies to prevent side effects
-    const processedItems = items.map(item => ({
-      product: item.product.toString(),
-      originalPrice: item.originalPrice || item.price,
-      price: item.originalPrice || item.price, // Start from original price before any promotion
-      qty: item.qty || 1
-    }));
+    const tracer = trace.getTracer('backend-api-discount-engine');
+    return tracer.startActiveSpan('discount_engine.calculate_stackable_discount', (span: any) => {
+      try {
+        const { items, activePromotions, shopVoucher, platformVoucher, totalPlatformItemsPrice } = input;
+        
+        span.setAttribute('discount.total_items', items.length);
+        span.setAttribute('discount.has_shop_voucher', !!shopVoucher);
+        span.setAttribute('discount.has_platform_voucher', !!platformVoucher);
+
+        // Create deep copies to prevent side effects
+        const processedItems = items.map(item => ({
+          product: item.product.toString(),
+          originalPrice: item.originalPrice || item.price,
+          price: item.originalPrice || item.price, // Start from original price before any promotion
+          qty: item.qty || 1
+        }));
 
     let campaignDiscount = 0;
     let priceFloorAdjusted = false;
@@ -131,16 +140,28 @@ export class DiscountEngine {
     // Subtotal after base campaigns
     const groupItemsPrice = processedItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
-    // C. Apply Bundle Deals (E.g. buy minQuantity items get discountValue off)
+        // C. Apply Bundle Deals (E.g. buy minQuantity items get discountValue off)
     let bundleDiscount = 0;
     const bundleDeals = activePromotions.filter(p => p.type === 'bundle_deal');
     const totalQty = processedItems.reduce((acc, item) => acc + item.qty, 0);
     for (const deal of bundleDeals) {
       if (deal.minQuantity && totalQty >= deal.minQuantity && deal.discountValue) {
+        let currentBundleDiscount = 0;
         if (deal.discountType === 'percentage') {
-          bundleDiscount += groupItemsPrice * (deal.discountValue / 100);
+          currentBundleDiscount = groupItemsPrice * (deal.discountValue / 100);
         } else {
-          bundleDiscount += deal.discountValue;
+          currentBundleDiscount = deal.discountValue;
+        }
+        bundleDiscount += currentBundleDiscount;
+        
+        // Distribute bundle discount proportionally to individual item prices
+        if (groupItemsPrice > 0) {
+          for (const item of processedItems) {
+            const itemSubtotal = item.price * item.qty;
+            const proportionalDiscount = (itemSubtotal / groupItemsPrice) * currentBundleDiscount;
+            const unitDiscount = proportionalDiscount / item.qty;
+            item.price = Math.max(0, item.price - unitDiscount);
+          }
         }
       }
     }
@@ -207,6 +228,13 @@ export class DiscountEngine {
     // Recalculate adjusted voucher totals
     const finalTotalDiscount = campaignDiscount + verifiedPromotionalDeduction;
 
+    span.setAttribute('discount.campaign_discount', campaignDiscount);
+    span.setAttribute('discount.price_floor_adjusted', priceFloorAdjusted);
+    span.setAttribute('discount.final_total_discount', finalTotalDiscount);
+    
+    span.setStatus({ code: SpanStatusCode.OK });
+    span.end();
+
     return {
       items: processedItems.map(item => ({ product: item.product, price: item.price, qty: item.qty })),
       campaignDiscount,
@@ -215,6 +243,13 @@ export class DiscountEngine {
       totalDiscount: finalTotalDiscount,
       priceFloorAdjusted
     };
+      } catch (err: any) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+        span.recordException(err);
+        span.end();
+        throw err;
+      }
+    });
   }
 }
 

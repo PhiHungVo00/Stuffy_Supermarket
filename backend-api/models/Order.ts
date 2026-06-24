@@ -34,7 +34,11 @@ export interface IOrder extends Document {
   disputeNotes?: string;
   trackingNumber?: string;
   shippingLabelUrl?: string;
+  estimatedDeliveryDate?: Date;
   shippingHistory?: Array<{ status: string; location: string; timestamp: Date }>;
+  paymentOrderCode?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const orderSchema = new Schema<IOrder>(
@@ -140,13 +144,21 @@ const orderSchema = new Schema<IOrder>(
     shippingLabelUrl: {
       type: String
     },
+    estimatedDeliveryDate: {
+      type: Date
+    },
     shippingHistory: [
       {
         status: { type: String, required: true },
         location: { type: String, required: true },
         timestamp: { type: Date, default: Date.now }
       }
-    ]
+    ],
+    paymentOrderCode: {
+      type: Number,
+      unique: true,
+      sparse: true
+    }
   },
   {
     timestamps: true,

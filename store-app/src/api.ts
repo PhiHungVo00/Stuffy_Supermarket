@@ -11,11 +11,25 @@ const GRAPHQL_URL = isProduction
   : "http://localhost:4000/graphql";
 
 const apiRequest = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  let authHeader = {};
+  if (typeof window !== 'undefined') {
+    const userInfoString = localStorage.getItem('userInfo');
+    if (userInfoString) {
+      try {
+        const { token } = JSON.parse(userInfoString);
+        if (token) {
+          authHeader = { 'Authorization': `Bearer ${token}` };
+        }
+      } catch (e) {}
+    }
+  }
+
   const settings = {
     ...options,
     credentials: 'include' as const,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeader,
       ...options.headers,
     },
   };
@@ -47,10 +61,10 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  register: (name: string, email: string, password: string): Promise<{ user: User }> => 
+  register: (name: string, email: string, password: string, role?: string): Promise<{ user: User }> => 
     apiRequest('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, role }),
     }),
   logout: (): Promise<{ message: string }> => 
     apiRequest('/auth/logout', {
@@ -84,6 +98,13 @@ export const productApi = {
             rating
             numReviews
             countInStock
+            shop {
+              id
+              name
+              logo
+              description
+              rating
+            }
           }
           page
           pages

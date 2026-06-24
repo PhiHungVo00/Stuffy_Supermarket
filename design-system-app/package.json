@@ -1,6 +1,7 @@
 {
-  "name": "design-system-app",
+  "name": "@stuffy/design-system",
   "version": "1.0.0",
+  "main": "dist/main.js",
   "scripts": {
     "start": "webpack serve --open",
     "build": "webpack --mode production",
@@ -28,6 +29,7 @@
     "prop-types": "^15.8.1",
     "storybook": "^10.3.4",
     "style-loader": "^3.3.4",
+    "typescript": "^5.4.5",
     "webpack": "^5.105.4",
     "webpack-cli": "^7.0.2",
     "webpack-dev-server": "^5.2.3"

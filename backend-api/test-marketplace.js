@@ -6,7 +6,7 @@ async function runTests() {
   
   try {
     console.log('Connecting to database to clean up documents...');
-    await mongoose.connect('mongodb://localhost:27017/stuffy_test_suite');
+    await mongoose.connect('mongodb://localhost:27017/stuffy_db');
     
     // Delete test-created documents, keeping the pre-seeded admin user
     try { await mongoose.connection.db.collection('users').deleteMany({ email: { $ne: 'admin@stuffy.com' } }); } catch (e) {}

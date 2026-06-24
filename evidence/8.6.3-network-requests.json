@@ -1,0 +1,312 @@
+{
+  "totalResponses": 76,
+  "jsCount": 37,
+  "byOrigin": {
+    "localhost:3000": [
+      {
+        "url": "http://localhost:3000/main.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3000/src_bootstrap_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3000/vendors-node_modules_react-toastify_dist_index_mjs-node_modules_react-dom_client_js-node_modu-f50b95.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3005": [
+      {
+        "url": "http://localhost:3005/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/vendors-node_modules_react_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/src_api_ts.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/vendors-node_modules_zustand_esm_index_mjs.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/src_i18n_ts.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/vendors-node_modules_preact_signals-react_dist_signals_module_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/src_GlobalSignals_ts.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3005/src_store_ts.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3001": [
+      {
+        "url": "http://localhost:3001/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3001/src_Header_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3001/vendors-node_modules_socket_io-client_build_esm_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3006": [
+      {
+        "url": "http://localhost:3006/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3006/src_ThemeConfig_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3006/src_components_ProductSkeleton_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3006/src_components_Button_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3006/src_index_css.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3004": [
+      {
+        "url": "http://localhost:3004/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3002": [
+      {
+        "url": "http://localhost:3002/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3002/vendors-node_modules_react-dom_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3002/vendors-node_modules_react-router-dom_dist_index_mjs.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3002/src_ProductList_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3002/vendors-node_modules_socket_io-client_build_esm_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3003": [
+      {
+        "url": "http://localhost:3003/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3003/src_components_Cart_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3003/vendors-node_modules_socket_io-client_build_esm_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3010": [
+      {
+        "url": "http://localhost:3010/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3010/src_FloatingChat_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3010/vendors-node_modules_socket_io-client_build_esm_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3009": [
+      {
+        "url": "http://localhost:3009/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3009/src_FlashSaleBanner_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3009/src_VoucherWallet_jsx.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3009/vendors-node_modules_socket_io-client_build_esm_index_js.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3008": [
+      {
+        "url": "http://localhost:3008/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ],
+    "localhost:3007": [
+      {
+        "url": "http://localhost:3007/remoteEntry.js",
+        "status": 200,
+        "type": "script",
+        "method": "GET"
+      }
+    ]
+  },
+  "remoteEntries": [
+    {
+      "url": "http://localhost:3005/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3001/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3006/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3004/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3002/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3003/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3010/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3009/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3008/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3007/remoteEntry.js",
+      "status": 200,
+      "type": "script",
+      "method": "GET"
+    }
+  ]
+}
