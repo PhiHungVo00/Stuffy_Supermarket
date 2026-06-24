@@ -3,10 +3,20 @@ import crypto from 'crypto';
 import User from '../models/User';
 import Shop from '../models/Shop';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { MailService } from '../services/MailService';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();
+
+// 🔒 SECURITY FIX: Brute-Force Protection Rate Limiter
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: { error: 'Too many authentication attempts from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 if (!process.env.JWT_SECRET) {
   if (process.env.NODE_ENV === 'production') {
@@ -21,7 +31,7 @@ const generateToken = (id: any) => {
   return jwt.sign({ id }, process.env.JWT_SECRET!, { expiresIn: '30d' });
 };
 
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
   const { name, email, password, role: requestedRole } = req.body;
 
   try {
@@ -86,7 +96,7 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {

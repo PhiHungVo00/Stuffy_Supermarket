@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import http from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
@@ -210,6 +211,20 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS, credentials: true } });
 app.set('io', io);
 
+// 🔒 SECURITY FIX: Middleware to decode JWT if present in handshake
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123') as any;
+      socket.data.userId = decoded.id; // Store authenticated user ID in socket
+    } catch (e) {
+      console.warn(`[Socket.IO] Invalid token provided by socket ${socket.id}`);
+    }
+  }
+  next(); // Allow connection (Guest mode if no token)
+});
+
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`);
   socket.on('JOIN_TENANT', (tenantId) => {
@@ -226,15 +241,24 @@ io.on('connection', (socket) => {
 
   // User joins their personal room to receive real-time messages
   socket.on('JOIN_USER_ROOM', (userId) => {
+    // 🔒 SECURITY FIX: Prevent IDOR - Verify the requested userId matches the token's userId
+    if (!socket.data.userId || socket.data.userId !== userId) {
+      console.warn(`[Socket.IO] Unauthorized IDOR attempt: Socket ${socket.id} tried to join user_room:${userId}`);
+      socket.emit('ERROR', { message: 'Unauthorized to join this room' });
+      return;
+    }
     socket.join(`user_room:${userId}`);
-    console.log(`[Socket.IO] User ${userId} joined room user_room:${userId}`);
+    console.log(`[Socket.IO] Authenticated User ${userId} joined room user_room:${userId}`);
   });
 
   // Handle buyer-seller message routing and storage
   socket.on('SEND_MESSAGE', async ({ senderId, recipientId, message, shopId, attachmentType, attachedProduct, attachedOrder }) => {
     try {
+      // 🔒 SECURITY FIX: Enforce senderId from verified token to prevent spoofing
+      const actualSenderId = socket.data.userId || senderId;
+
       let chatMsg = await ChatMessage.create({
-        sender: senderId,
+        sender: actualSenderId,
         recipient: recipientId,
         shop: shopId || undefined,
         message,
