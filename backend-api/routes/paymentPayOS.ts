@@ -57,8 +57,14 @@ router.post('/create-link', protect, async (req: any, res: Response) => {
 router.post('/webhook', async (req: Request, res: Response) => {
   try {
     const webhookData = await PayOSService.verifyWebhookData(req.body);
-    const orderCode = webhookData?.orderCode || req.body?.data?.orderCode;
-    const success = webhookData?.success || req.body?.success || req.body?.data?.desc === 'success';
+    
+    // STRICT SECURITY: Use only verified data. Throw if signature is invalid or data is missing.
+    if (!webhookData || !webhookData.orderCode) {
+      throw new Error("Invalid Webhook payload or signature verification failed.");
+    }
+    
+    const orderCode = webhookData.orderCode;
+    const success = webhookData.success || webhookData.desc === 'success' || webhookData.code === '00';
 
     if (orderCode && success) {
       // Fetch all orders associated with this unique payment code

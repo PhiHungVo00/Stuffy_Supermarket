@@ -40,11 +40,17 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
 
         // Replay any subscriptions registered before the channel was ready
         for (const sub of pendingSubscriptions) {
-            channel.consume(sub.queue, (msg: any) => {
+            channel.consume(sub.queue, async (msg: any) => {
                 if (msg !== null) {
-                    const content = JSON.parse(msg.content.toString());
-                    sub.callback(content);
-                    channel.ack(msg);
+                    try {
+                        const content = JSON.parse(msg.content.toString());
+                        await sub.callback(content);
+                        channel.ack(msg);
+                    } catch (error: any) {
+                        console.error(`[RabbitMQ] Consumer error on queue ${sub.queue}:`, error.message);
+                        // nack with requeue=false sends it to the Dead Letter Exchange (DLX)
+                        channel.nack(msg, false, false);
+                    }
                 }
             });
         }
@@ -107,11 +113,16 @@ export const pubsub = {
             console.error(`[RabbitMQ] Channel not initialized yet. Subscription to ${queue} will replay on connect.`);
             return;
         }
-        channel.consume(queue, (msg: any) => {
+        channel.consume(queue, async (msg: any) => {
             if (msg !== null) {
-                const content = JSON.parse(msg.content.toString());
-                callback(content);
-                channel.ack(msg);
+                try {
+                    const content = JSON.parse(msg.content.toString());
+                    await callback(content);
+                    channel.ack(msg);
+                } catch (error: any) {
+                    console.error(`[RabbitMQ] Consumer error on queue ${queue}:`, error.message);
+                    channel.nack(msg, false, false);
+                }
             }
         });
     }

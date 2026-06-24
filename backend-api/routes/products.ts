@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { protect, authorize } from '../middleware/auth';
 import Product from '../models/Product';
 import Shop from '../models/Shop';
@@ -260,23 +261,30 @@ router.post('/', protect, authorize('admin', 'seller'), async (req: any, res: Re
         shop: shopId,
         tenantId: req.headers['x-tenant-id'] || 'default_store'
     });
-    await newProduct.save();
-    await clearCache('products:*'); // Invalidate listed products
-    
-    // Transactional Outbox Pattern: Save events to the DB first
-    await Outbox.create({
-      aggregateType: 'Product',
-      aggregateId: newProduct._id.toString(),
-      eventType: 'INVENTORY_SYNC',
-      payload: newProduct
-    });
 
-    await Outbox.create({
-      aggregateType: 'Product',
-      aggregateId: newProduct._id.toString(),
-      eventType: 'EMAIL_NOTIFICATIONS',
-      payload: { to: 'admin@stuffy.com', body: `New Product Added: ${newProduct.name}` }
+    // 🔒 Enterprise Fix: Use MongoDB Transaction to ensure Outbox Pattern atomicity
+    const session = await mongoose.startSession();
+    await session.withTransaction(async () => {
+      await newProduct.save({ session });
+      
+      // Transactional Outbox Pattern: Save events to the DB first within the SAME transaction
+      await Outbox.create([{
+        aggregateType: 'Product',
+        aggregateId: newProduct._id.toString(),
+        eventType: 'INVENTORY_SYNC',
+        payload: newProduct
+      }], { session });
+
+      await Outbox.create([{
+        aggregateType: 'Product',
+        aggregateId: newProduct._id.toString(),
+        eventType: 'EMAIL_NOTIFICATIONS',
+        payload: { to: 'admin@stuffy.com', body: `New Product Added: ${newProduct.name}` }
+      }], { session });
     });
+    await session.endSession();
+
+    await clearCache('products:*'); // Invalidate listed products
 
     const io = req.app.get('io');
     if (io) {
