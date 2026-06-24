@@ -1,9 +1,0 @@
-{
-  "name": "Phase 3 - Core Feature Completion",
-  "agentType": "marketplace-backend",
-  "tasks": [
-    "Implement User Authentication JWT verification and confirmation route.",
-    "Develop multi-seller order splitting, wallet lazy-creation, and escrow payout release.",
-    "Implement Flash Sales pricing campaigns and support checkout calculations."
-  ]
-}

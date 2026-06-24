@@ -1,9 +1,0 @@
-{
-  "name": "Phase 2 - Architecture Refactor",
-  "agentType": "marketplace-backend",
-  "tasks": [
-    "Move monolithic product endpoints from server.ts into separate routes/products.ts router file.",
-    "Refactor server.ts to register product routes router and attach Socket.IO server on req.app.",
-    "Update frontend styling tokens to utilize HSL custom properties variables."
-  ]
-}

@@ -1,9 +1,0 @@
-{
-  "name": "Phase 1 - Audit & Baseline",
-  "agentType": "bug-hunter",
-  "tasks": [
-    "Run E2E test suite to locate breaking compilation bugs in JSX files.",
-    "Resolve catch blocks with typescript annotations causing babel compilation errors.",
-    "Map all existing system endpoints, models, and microservices."
-  ]
-}
