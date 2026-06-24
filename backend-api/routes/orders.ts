@@ -770,6 +770,11 @@ router.put('/:id/status', protect, authorize('admin', 'seller'), async (req: any
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
+    // 🔒 SECURITY FIX: Prevent Status Forgery
+    if (status === 'Delivered' && req.user.role === 'seller') {
+      return res.status(403).json({ error: 'Sellers cannot mark orders as Delivered. Only Webhooks or Admins can do this.' });
+    }
+
     const previousStatus = order.status;
     order.status = status;
     

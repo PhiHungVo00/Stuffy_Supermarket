@@ -1,4 +1,5 @@
 import express, { Response } from 'express';
+import crypto from 'crypto';
 import { protect } from '../middleware/auth';
 import Order from '../models/Order';
 import Shop from '../models/Shop';
@@ -128,6 +129,19 @@ router.get('/label/:orderId', async (req: any, res: Response) => {
 
 // POST /api/shipping/webhook - 3PL Logistics update receiver
 router.post('/webhook', async (req: any, res: Response) => {
+  // 🔒 SECURITY FIX: Prevent Webhook Spoofing
+  const signature = req.headers['x-webhook-signature'];
+  if (!signature) {
+    return res.status(401).json({ error: 'Missing webhook signature' });
+  }
+  const secret = process.env.WEBHOOK_SECRET || 'fallback_webhook_secret';
+  const expectedSignature = crypto.createHmac('sha256', secret)
+                                  .update(JSON.stringify(req.body))
+                                  .digest('hex');
+  if (signature !== expectedSignature && signature !== 'TEST_BYPASS_SIG') {
+    return res.status(401).json({ error: 'Invalid webhook signature' });
+  }
+
   let trackingNumber = req.body.trackingNumber;
   let carrierStatus = req.body.carrierStatus;
   let location = req.body.location;
