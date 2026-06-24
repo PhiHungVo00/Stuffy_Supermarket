@@ -203,21 +203,38 @@ router.delete('/:id', protect, async (req: any, res: Response) => {
 // POST /api/vouchers/:id/claim - Claim a voucher for current user
 router.post('/:id/claim', protect, async (req: any, res: Response) => {
   try {
-    const voucher = await Voucher.findById(req.params.id);
-    if (!voucher) {
+    const voucherInfo = await Voucher.findById(req.params.id);
+    if (!voucherInfo) {
       return res.status(404).json({ error: 'Voucher not found.' });
     }
 
-    if (!voucher.isActive || new Date(voucher.expiresAt) <= new Date()) {
+    if (!voucherInfo.isActive || new Date(voucherInfo.expiresAt) <= new Date()) {
       return res.status(400).json({ error: 'This voucher has expired or is inactive.' });
     }
 
-    if (voucher.claimedBy.includes(req.user._id)) {
-      return res.status(400).json({ error: 'You have already claimed this voucher.' });
+    // 🔒 SECURITY FIX: Voucher Claim Race Condition
+    // Use atomic findOneAndUpdate with $addToSet to prevent duplicate claims
+    // and $expr to prevent exceeding usage limit.
+    const updatedVoucher = await Voucher.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        claimedBy: { $ne: req.user._id },
+        $expr: { $lt: [{ $size: '$claimedBy' }, '$usageLimit'] }
+      },
+      {
+        $addToSet: { claimedBy: req.user._id }
+      },
+      { new: true }
+    );
+
+    if (!updatedVoucher) {
+      if (voucherInfo.claimedBy.includes(req.user._id)) {
+        return res.status(400).json({ error: 'You have already claimed this voucher.' });
+      } else {
+        return res.status(400).json({ error: 'This voucher is fully claimed.' });
+      }
     }
 
-    voucher.claimedBy.push(req.user._id);
-    const updatedVoucher = await voucher.save();
     res.json({ message: 'Voucher claimed successfully!', voucher: updatedVoucher });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Server error claiming voucher' });
