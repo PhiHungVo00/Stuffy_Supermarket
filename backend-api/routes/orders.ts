@@ -466,12 +466,16 @@ router.post('/', protect, async (req: any, res: Response) => {
         }
 
         // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
+        // 🔒 SECURITY FIX: Atomic Coin Balance Update to prevent Race Condition
         if (coinsToRedeem > 0) {
-          await User.findByIdAndUpdate(
-            req.user._id,
+          const updatedUser = await User.findOneAndUpdate(
+            { _id: req.user._id, coinsBalance: { $gte: coinsToRedeem } },
             { $inc: { coinsBalance: -coinsToRedeem } },
-            { session }
+            { session, new: true }
           );
+          if (!updatedUser) {
+            throw new Error('Insufficient coins balance or balance changed during processing.');
+          }
           // Model.create([...], { session }) phải nhận MẢNG để truyền options session đúng cách
           await CoinTransaction.create([{
             user: req.user._id,
