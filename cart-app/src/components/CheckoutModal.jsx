@@ -191,7 +191,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
                     transition: 'all 0.2s'
                   }}
                 >
-                  <span style={{ fontSize: '1.4rem' }}>💳</span>
+                  <span style={{ fontSize: '1.4rem' }}>[Card]</span>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: paymentMethod === 'stripe' ? 'var(--primary-color)' : 'var(--text-main)' }}>{t('credit_card')}</span>
                 </div>
                 <div 
@@ -210,7 +210,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
                     transition: 'all 0.2s'
                   }}
                 >
-                  <span style={{ fontSize: '1.4rem' }}>📱</span>
+                  <span style={{ fontSize: '1.4rem' }}>[QR]</span>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: paymentMethod === 'vietqr' ? 'var(--primary-color)' : 'var(--text-main)' }}>{t('vietqr')}</span>
                 </div>
               </div>
@@ -219,7 +219,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
             {paymentMethod === 'stripe' ? (
               <>
                 <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.85rem', color: '#b91c1c', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>💳</span>
+                  <span style={{ fontSize: '1.2rem' }}>[Card]</span>
                   <span>{t('test_mode_notice')}</span>
                 </div>
 
@@ -245,7 +245,7 @@ export default function CheckoutModal({ total, breakdown, onCheckout, onClose })
               </>
             ) : (
               <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #86efac', display: 'flex', alignItems: 'flex-start', gap: '12px', textAlign: 'left' }}>
-                <span style={{ fontSize: '1.5rem', lineHeight: '1' }}>⚡</span>
+                <span style={{ fontSize: '1.5rem', lineHeight: '1' }}>[Info]</span>
                 <span style={{ fontSize: '0.85rem', color: '#15803d', fontWeight: '600', lineHeight: '1.5' }}>
                   Hệ thống sẽ tạo đơn hàng và thiết lập liên kết VietQR (PayOS) để bạn quét mã thanh toán từ ứng dụng ngân hàng của bạn.
                 </span>

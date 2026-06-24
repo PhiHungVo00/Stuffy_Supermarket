@@ -18,7 +18,7 @@ const ERC721_ABI = [
 export class Web3LoyaltyService {
   
   /**
-   * 🛡️ Signature Verification
+   * Signature Verification
    * Verify that the wallet address actually signed the message.
    */
   static verifySignature(walletAddress: string, signature: string, nonce: string): boolean {
@@ -33,7 +33,7 @@ export class Web3LoyaltyService {
   }
 
   /**
-   * 🛡️ Verified NFT Ownership
+   * Verified NFT Ownership
    * Checks if the user's wallet owns at least 1 Stuffy VIP NFT.
    */
   static async checkVipNftOwnership(walletAddress: string): Promise<boolean> {

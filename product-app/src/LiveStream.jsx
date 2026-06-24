@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useCartStore } from "store/store";
 import { io } from "socket.io-client";
 import Hls from "hls.js";
@@ -527,7 +527,7 @@ export default function LiveStream() {
           socketRef.current.emit("SEND_STREAM_COMMENT", {
             shopId,
             userName: "system_bot",
-            comment: `Chúc mừng ${userProfile.name || 'khách hàng'} đã chốt đơn thành công sản phẩm "${checkoutProduct.name}" trên Livestream! 🔥`
+            comment: `Chúc mừng ${userProfile.name || 'khách hàng'} đã chốt đơn thành công sản phẩm "${checkoutProduct.name}" trên Livestream! [Thành công]`
           });
         }
         setShowQuickCheckout(false);
@@ -611,7 +611,7 @@ export default function LiveStream() {
               onClick={() => setUseDemoHls(prev => !prev)}
               style={{ background: useDemoHls ? "#ef4444" : "rgba(0,0,0,0.5)", color: "white", border: "1px solid rgba(255,255,255,0.3)", padding: "8px 16px", borderRadius: "99px", fontSize: "0.78rem", fontWeight: "800", cursor: "pointer", backdropFilter: "blur(4px)", transition: "all 0.2s" }}
             >
-              {useDemoHls ? "📺 Dừng HLS Demo" : "📺 Bật HLS Demo"}
+              {useDemoHls ? "Dừng HLS Demo" : "Bật HLS Demo"}
             </button>
           </div>
 
@@ -625,7 +625,7 @@ export default function LiveStream() {
           <div style={{ position: "absolute", bottom: "110px", left: "30px", width: "280px", background: "white", padding: "12px", borderRadius: "16px", color: "black", display: "flex", gap: "10px", alignItems: "center", border: "2px solid #ea580c", boxShadow: "0 10px 25px rgba(234, 88, 12, 0.2)", zIndex: 15 }}>
             <img src={pinnedProduct.image} alt={pinnedProduct.name} decoding="async" style={{ width: "45px", height: "45px", objectFit: "contain" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "0.68rem", fontWeight: "800", color: "#ea580c", textTransform: "uppercase" }}>🔥 {t('pinned_deal')}</div>
+              <div style={{ fontSize: "0.68rem", fontWeight: "800", color: "#ea580c", textTransform: "uppercase" }}>[HOT] {t('pinned_deal')}</div>
               <div style={{ fontSize: "0.8rem", fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pinnedProduct.name}</div>
               <div style={{ fontSize: "0.82rem", fontWeight: "800", color: "var(--primary-color)" }}>${pinnedProduct.price}</div>
             </div>
@@ -660,10 +660,10 @@ export default function LiveStream() {
             boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
             zIndex: 30
           }}>
-            <span>🎉</span>
+            <span>[Gift]</span>
             <span>{giftAnimation.userName} {t('gift_' + giftAnimation.giftType.toLowerCase() + '_desc')}</span>
             <span style={{ fontSize: "1.5rem" }}>
-              {giftAnimation.giftType === "Rose" ? "🌹" : (giftAnimation.giftType === "Heart" ? "💖" : "🚀")}
+              {giftAnimation.giftType === "Rose" ? "[Rose]" : (giftAnimation.giftType === "Heart" ? "[Heart]" : "[Rocket]")}
             </span>
           </div>
         )}
@@ -673,7 +673,7 @@ export default function LiveStream() {
           onClick={() => setShowDrawer(!showDrawer)}
           style={{ position: "absolute", bottom: "30px", left: "30px", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", color: "white", fontSize: "1.8rem", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: "0 10px 15px -3px rgba(234, 88, 12, 0.4)", zIndex: 10 }}
         >
-          🛍️
+          Túi hàng
         </button>
 
         {/* Virtual Gifting Button */}
@@ -681,21 +681,21 @@ export default function LiveStream() {
           onClick={() => setShowGiftModal(!showGiftModal)}
           style={{ position: "absolute", bottom: "30px", left: "105px", width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, #ec4899, #db2777)", border: "none", color: "white", fontSize: "1.8rem", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: "0 10px 15px -3px rgba(219, 39, 119, 0.4)", zIndex: 10 }}
         >
-          🎁
+          Tặng quà
         </button>
 
         {/* Gifting Selection Modal */}
         {showGiftModal && (
           <div style={{ position: "absolute", bottom: "100px", left: "105px", width: "240px", background: "rgba(255,255,255,0.95)", backdropFilter: "blur(8px)", borderRadius: "16px", padding: "15px", color: "#0f172a", border: "1px solid rgba(255,255,255,0.2)", zIndex: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px" }}>
-              <span style={{ fontWeight: "800", fontSize: "0.85rem" }}>{t('coins')}: {userCoins} 🪙</span>
+              <span style={{ fontWeight: "800", fontSize: "0.85rem" }}>{t('coins')}: {userCoins} Coins</span>
               <button onClick={() => setShowGiftModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontWeight: "bold" }}>×</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
-                { type: "Rose", cost: 5, emoji: "🌹" },
-                { type: "Heart", cost: 10, emoji: "💖" },
-                { type: "Rocket", cost: 50, emoji: "🚀" }
+                { type: "Rose", cost: 5, emoji: "[Rose]" },
+                { type: "Heart", cost: 10, emoji: "[Heart]" },
+                { type: "Rocket", cost: 50, emoji: "[Rocket]" }
               ].map(gift => (
                 <button
                   key={gift.type}
@@ -753,7 +753,7 @@ export default function LiveStream() {
         {showQuickCheckout && (
           <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "320px", background: "white", padding: "20px", borderRadius: "16px", color: "#0f172a", zIndex: 25, boxShadow: "0 15px 30px rgba(0,0,0,0.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "15px" }}>
-              <span style={{ fontWeight: "800", fontSize: "0.95rem" }}>⚡ Mua nhanh trực tiếp</span>
+              <span style={{ fontWeight: "800", fontSize: "0.95rem" }}>Mua nhanh trực tiếp</span>
               <button onClick={() => { setShowQuickCheckout(false); setPayosQrData(null); }} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontWeight: "bold", fontSize: "1.2rem" }}>×</button>
             </div>
 

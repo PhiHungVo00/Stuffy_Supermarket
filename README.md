@@ -60,7 +60,7 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 
 Để hệ thống hoạt động đầy đủ tính năng, bạn cần cấu hình các biến môi trường sau vào **Environment Group** trên Render của bạn:
 
-### 🔑 Các Khóa Môi trường (Environment Variables):
+### Các Khóa Môi trường (Environment Variables):
 -   `MONGO_URI`: URL kết nối MongoDB Atlas (Gói Free M0).
 -   `REDIS_URL`: URL kết nối Redis từ Upstash (Sử dụng `rediss://` cho SSL).
 -   `RABBIT_URL`: URL kết nối RabbitMQ từ CloudAMQP.
@@ -76,7 +76,7 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 
 ---
 
-## 🚀 Quy trình CI/CD (GitHub Actions)
+## Quy trình CI/CD (GitHub Actions)
 
 Mọi thay đổi trên toàn bộ monorepo đều được kiểm soát bởi quy trình CI/CD Thông minh (Smart Pipeline) để tiết kiệm tài nguyên:
 1.  **Smart Linter & Tests**: Tự động kiểm tra cú pháp và chạy bài test tích hợp mỗi khi có Pull Request.
