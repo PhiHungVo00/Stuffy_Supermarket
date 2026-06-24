@@ -669,6 +669,28 @@ app.get('/api/images/proxy', async (req: Request, res: Response) => {
     const { url, w = '800', q = '80' } = req.query;
     if (!url) return res.status(400).json({ error: 'url is required' });
 
+    // 🔒 SECURITY FIX: SSRF Protection
+    try {
+      const parsedUrl = new URL(url as string);
+      
+      // 1. Whitelist Protocols
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        console.warn(`[SSRF] Blocked invalid protocol: ${parsedUrl.protocol}`);
+        return res.status(400).json({ error: 'Invalid URL: Only HTTP/HTTPS allowed' });
+      }
+
+      // 2. Blacklist Internal/Private IP Ranges & Localhost
+      const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+      const isInternalIP = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|169\.254\.)/.test(parsedUrl.hostname);
+      
+      if (isLocalhost || isInternalIP) {
+        console.warn(`[SSRF] Blocked access to internal network: ${parsedUrl.hostname}`);
+        return res.status(403).json({ error: 'Invalid URL: Access to internal network is forbidden' });
+      }
+    } catch (e) {
+      return res.status(400).json({ error: 'Malformed URL' });
+    }
+
     const result = await getResilientImage(url as string, parseInt(w as string), parseInt(q as string));
     
     if (typeof result === 'string') {

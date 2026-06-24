@@ -1,4 +1,4 @@
-﻿import express, { Response } from 'express';
+import express, { Response } from 'express';
 import { AccessToken } from 'livekit-server-sdk';
 import { protect } from '../middleware/auth';
 import Shop from '../models/Shop';
@@ -148,28 +148,34 @@ router.post('/mine/wallet/withdraw', protect, async (req: any, res: Response) =>
       return res.status(404).json({ error: 'Shop not found for this seller' });
     }
 
-    let wallet = await SellerWallet.findOne({ shopId: shop._id });
-    if (!wallet || wallet.balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    wallet.balance = Math.round((wallet.balance - amount) * 100) / 100;
-    
     // Simulate real bank transfer reference creation
     const referenceId = `STUFFY_WD_${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
     
-    wallet.transactions.push({
-      amount: -amount,
-      type: 'withdrawal',
-      description: `Withdrawal to ${bankName} (${accountNumber})`,
-      status: 'success',
-      bankName,
-      accountNumber,
-      recipientName: req.body.recipientName || req.user.name,
-      referenceId,
-      createdAt: new Date()
-    });
-    await wallet.save();
+    // 🔒 SECURITY FIX: Use MongoDB Atomic Update to prevent Race Condition
+    const wallet = await SellerWallet.findOneAndUpdate(
+      { shopId: shop._id, balance: { $gte: amount } },
+      {
+        $inc: { balance: -amount },
+        $push: {
+          transactions: {
+            amount: -amount,
+            type: 'withdrawal',
+            description: `Withdrawal to ${bankName} (${accountNumber})`,
+            status: 'success',
+            bankName,
+            accountNumber,
+            recipientName: req.body.recipientName || req.user.name,
+            referenceId,
+            createdAt: new Date()
+          }
+        }
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!wallet) {
+      return res.status(400).json({ error: 'Insufficient balance or wallet not found' });
+    }
 
     res.json({ message: 'Withdrawal successful', wallet });
   } catch (error: any) {
