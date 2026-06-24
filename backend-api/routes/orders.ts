@@ -92,11 +92,21 @@ router.post('/', protect, async (req: any, res: Response) => {
     const productsMap = new Map();
     for (const item of orderItems) {
       if (item.product) {
+        // 🔒 SECURITY FIX: Sanitize and strictly validate quantity
+        item.qty = Math.floor(Number(item.qty)) || 1;
+        if (item.qty <= 0) {
+          return res.status(400).json({ error: `Số lượng sản phẩm không hợp lệ (mã SP: ${item.product})` });
+        }
+
         const product = await Product.findById(item.product);
         if (!product) {
           return res.status(400).json({ error: `Product ${item.product} not found` });
         }
-        if ((product.countInStock ?? 0) < (item.qty || 1)) {
+
+        // 🔒 SECURITY FIX: Override client's price with trusted Database price
+        item.price = product.price;
+
+        if ((product.countInStock ?? 0) < item.qty) {
           return res.status(400).json({ error: `Insufficient stock for ${product.name}. Available: ${product.countInStock}` });
         }
         productsMap.set(item.product.toString(), product);
