@@ -1,4 +1,4 @@
-# 🛒 Stuffy Supermarket - Elite Micro Frontends & AI Ecosystem
+# Stuffy Supermarket - Elite Micro Frontends & AI Ecosystem
 
 ![Master Architecture](https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=1200&auto=format&fit=crop)
 
@@ -6,11 +6,11 @@
 
 ---
 
-## 🏗️ Kiến trúc Tổng thể (Elite Mesh)
+## Kiến trúc Tổng thể (Elite Mesh)
 
 Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại Runtime, quản lý tập trung tại Build-time), giao tiếp qua **GraphQL Federation Gateway** và **Message Broker (RabbitMQ)**.
 
-### 🧩 15+ Micro Frontends & Microservices Catalog:
+### 15+ Micro Frontends & Microservices Catalog:
 | Module | Vai trò | Công nghệ | URL (Production) |
 | :--- | :--- | :--- | :--- |
 | **`container`** | **App Shell / Orchestrator**: Trái tim điều phối Registry & PWA. | Webpack MF, React | [Link](https://stuffy-container.onrender.com) |
@@ -25,27 +25,27 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 
 ---
 
-## 🌟 Tính năng Elite & Khác biệt Kỹ thuật
+## Tính năng Elite & Khác biệt Kỹ thuật
 
-### 🧠 1. Agentic AI Shopping Copilot (Google Gemini Inside)
+### 1. Agentic AI Shopping Copilot (Google Gemini Inside)
 *   Sử dụng **Google Gemini Core** để tư vấn sản phẩm cá nhân hóa.
 *   **Contextual Search**: Tìm kiếm sản phẩm thông minh theo ngữ cảnh người dùng.
 
-### 🔗 2. Web3 & Loyalty Gamification (Polygon Integration)
+### 2. Web3 & Loyalty Gamification (Polygon Integration)
 *   **NFT Connectivity**: Xác thực quyền sở hữu NFT (Stuffy Diamond VIP) trên mạng Polygon qua **Alchemy**.
 *   **Dynamic Pricing Rule Engine**: Tự động áp dụng giảm giá "bí mật" 20% cho chủ sở hữu NFT tại Runtime.
 
-### 🛡️ 3. Resilient Image Edge Proxy & Circuit Breaker
+### 3. Resilient Image Edge Proxy & Circuit Breaker
 *   Toàn bộ ảnh sản phẩm được proxy qua **ResilienceService**.
 *   Sử dụng **Circuit Breaker (Opossum)**: Nếu `image-service` gặp sự cố, hệ thống sẽ tự động chuyển sang nạp ảnh gốc (Unsplash) để bảo vệ trải nghiệm người dùng.
 
-### 🚦 4. Distributed Governance Registry
+### 4. Distributed Governance Registry
 *   Cấu hình MFE không còn bị "đóng cứng" trong mã nguồn. 
 *   Quản trị viên có thể **chuyển phiên bản (Rollback/Switch)** MFEs ngay lập tức thông qua Database Registry mà không cần Re-deploy App Shell.
 
 ---
 
-## 🛠️ Tech Stack & Infrastructure
+## Tech Stack & Infrastructure
 
 -   **Frontend**: React 18, Webpack 5 (Module Federation), Zustand (State Management), Framer Motion (Animation).
 -   **Backend**: Node.js (ESM), Express, Apollo Server (GraphQL Federation).
@@ -56,7 +56,7 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 
 ---
 
-## 🏗️ Hướng dẫn Triển khai (Cloud - Render)
+## Hướng dẫn Triển khai (Cloud - Render)
 
 Để hệ thống hoạt động đầy đủ tính năng, bạn cần cấu hình các biến môi trường sau vào **Environment Group** trên Render của bạn:
 
@@ -85,11 +85,11 @@ Mọi thay đổi trên toàn bộ monorepo đều được kiểm soát bởi q
 
 ---
 
-## 🛡️ Cam kết Chất lượng
+## Cam kết Chất lượng
 *   **100% Cloud-Synchronized**: Không còn bất kỳ đường dẫn `localhost` nào trong mã nguồn Production.
 *   **Zero-Downtime Resilience**: Cơ chế tự phục hồi (Self-Healing) tích hợp trong mỗi Microservice.
 *   **Enterprise Security**: Xác thực liên dịch vụ (Inter-service Auth) qua JWT Internal.
 
 ---
 
-*Phát triển bởi đội ngũ Stuffy Supermarket Elite Developers. 🚀🛡️💎🎯*
+*Phát triển bởi đội ngũ Stuffy Supermarket Elite Developers.*
