@@ -4,6 +4,11 @@ import Product from '../models/Product';
 
 const router = express.Router();
 
+// 🔒 SECURITY FIX: Prevent ReDoS
+const escapeRegex = (text: string) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 // Initialize Google Gemini AI
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 let genAI: GoogleGenerativeAI | null = null;
@@ -85,9 +90,9 @@ router.post('/visual-search', async (req: Request, res: Response) => {
     // Build query to find products matching any of the extracted keywords
     const orConditions = keywords.map(kw => ({
       $or: [
-        { name: { $regex: kw, $options: 'i' } },
-        { category: { $regex: kw, $options: 'i' } },
-        { description: { $regex: kw, $options: 'i' } }
+        { name: { $regex: escapeRegex(kw), $options: 'i' } },
+        { category: { $regex: escapeRegex(kw), $options: 'i' } },
+        { description: { $regex: escapeRegex(kw), $options: 'i' } }
       ]
     }));
 

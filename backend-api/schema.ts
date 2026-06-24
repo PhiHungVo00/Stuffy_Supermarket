@@ -55,6 +55,13 @@ export const typeDefs = gql`
   }
 `;
 
+import { getCachedData, setCachedData } from './redis';
+
+// 🔒 SECURITY FIX: Prevent ReDoS
+const escapeRegex = (text: string) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 export const resolvers = {
   Product: {
     id: (parent: any) => parent._id || parent.id,
@@ -74,7 +81,7 @@ export const resolvers = {
       const query: any = {};
       
       if (keyword) {
-        query.name = { $regex: keyword, $options: 'i' };
+        query.name = { $regex: escapeRegex(keyword), $options: 'i' };
       }
       
       if (category && category !== 'All') {

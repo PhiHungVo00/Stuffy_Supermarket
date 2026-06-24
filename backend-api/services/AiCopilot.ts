@@ -48,6 +48,11 @@ const tools: any[] = [
 
 export class AiCopilot {
   static async handleChat(query: string, tenantId: string = 'default_store') {
+    // 🔒 SECURITY FIX: Prevent ReDoS
+    const escapeRegex = (text: string) => {
+      return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    };
+
     console.log(`[AI Copilot] Processing query: "${query}" for tenant: ${tenantId}`);
 
     // System Prompt: Set the personality of the Agent
@@ -81,7 +86,7 @@ export class AiCopilot {
       if (functionName === "search_and_filter_products") {
         result = await Product.find({
           tenantId,
-          name: { $regex: args.keyword, $options: 'i' },
+          name: { $regex: escapeRegex(args.keyword || ''), $options: 'i' },
           price: { $gte: args.minPrice || 0, $lte: args.maxPrice || 99999 }
         }).limit(5);
       } 
@@ -90,8 +95,8 @@ export class AiCopilot {
           result = await Product.find({
               tenantId,
               $or: [
-                  { category: { $regex: args.theme, $options: 'i' } },
-                  { name: { $regex: args.theme, $options: 'i' } }
+                  { category: { $regex: escapeRegex(args.theme || ''), $options: 'i' } },
+                  { name: { $regex: escapeRegex(args.theme || ''), $options: 'i' } }
               ],
               price: { $lte: args.budget }
           }).limit(3);

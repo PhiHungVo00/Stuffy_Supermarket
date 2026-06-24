@@ -10,14 +10,19 @@ import { pubsub } from '../rabbitmq';
 
 const router = express.Router();
 
+// 🔒 SECURITY FIX: Prevent ReDoS by escaping user input
+const escapeRegex = (text: string) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
 // GET /api/products
 router.get('/', async (req: Request, res: Response) => {
   try {
     const tenantId = (req.headers['x-tenant-id'] as string) || 'default_store';
-    const pageSize = Number(req.query.pageSize) || 8;
+    const pageSize = Math.min(Number(req.query.pageSize) || 8, 50); // 🔒 SECURITY FIX: Prevent Pagination DoS
     const page = Number(req.query.pageNumber) || 1;
     const keyword = req.query.keyword
-      ? { name: { $regex: req.query.keyword as string, $options: 'i' } }
+      ? { name: { $regex: escapeRegex(req.query.keyword as string), $options: 'i' } } // 🔒 SECURITY FIX: Prevent ReDoS
       : {};
     const categoryQuery = req.query.category && req.query.category !== 'All' 
       ? { category: req.query.category as string } 
