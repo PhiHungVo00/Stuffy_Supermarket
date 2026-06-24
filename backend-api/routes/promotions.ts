@@ -94,8 +94,9 @@ router.put('/:id', protect, async (req: any, res: Response) => {
       return res.status(403).json({ error: 'Not authorized to manage this promotion' });
     }
 
-    const fieldsToUpdate = req.body;
-    Object.assign(promotion, fieldsToUpdate);
+    // 🔒 SECURITY FIX: Prevent Mass Assignment (Discount Sabotage)
+    const { shopId, _id, ...safeFieldsToUpdate } = req.body;
+    Object.assign(promotion, safeFieldsToUpdate);
     const updatedPromo = await promotion.save();
 
     res.json(updatedPromo);

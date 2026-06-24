@@ -256,8 +256,11 @@ router.post('/', protect, authorize('admin', 'seller'), async (req: any, res: Re
       }
     }
 
+    // 🔒 SECURITY FIX: Prevent Mass Assignment of rating/reviews
+    const { rating, numReviews, reviews, shop, tenantId, _id, ...safeProductData } = req.body;
+
     const newProduct = new Product({
-        ...req.body,
+        ...safeProductData,
         shop: shopId,
         tenantId: req.headers['x-tenant-id'] || 'default_store'
     });
