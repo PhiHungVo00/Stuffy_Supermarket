@@ -138,7 +138,7 @@ async function startServer() {
   const waitSubgraph = async (name: string, url: string) => {
     let ready = false;
     let attempts = 0;
-    while (!ready && attempts < 30) {
+    while (!ready && attempts < 120) { // Tăng lên 120 lần chờ (2 phút) để đối phó với Render Cold Start
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -166,7 +166,32 @@ async function startServer() {
   ]);
 
   await server.start();
-  app.use(cors<cors.CorsRequest>(), express.json());
+  
+  const ALLOWED_ORIGINS = [
+    'https://stuffy-container.onrender.com',
+    'https://stuffy-store-app.onrender.com',
+    'https://stuffy-header-app.onrender.com',
+    'https://stuffy-product-app.onrender.com',
+    'https://stuffy-cart-app.onrender.com',
+    'https://stuffy-admin-app.onrender.com',
+    'https://stuffy-profile-app.onrender.com',
+    'https://stuffy-marketing-app.onrender.com',
+    'https://stuffy-support-app.onrender.com',
+    'https://stuffy-3d-viewer-app.onrender.com',
+    'https://stuffy-design-system-app.onrender.com',
+    'http://localhost:3000'
+  ];
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true
+  }), express.json());
   app.use(limiter);
 
   // Apply stricter rate limiting dynamically on auth or checkout mutations
