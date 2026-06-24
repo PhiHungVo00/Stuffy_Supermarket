@@ -7,7 +7,7 @@ on:
     branches: ["main", "master", "Dev"]
 
 permissions:
-  contents: read
+  contents: write # Needed for GitOps commit
   packages: write
 
 jobs:
@@ -32,9 +32,6 @@ jobs:
         ports:
           - 5672:5672
           - 15672:15672
-        env:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
         options: >-
           --health-cmd "rabbitmq-diagnostics ping"
           --health-interval 10s
@@ -53,6 +50,9 @@ jobs:
       - name: Cài đặt dependencies
         run: npm ci
 
+      - name: Linter Code
+        run: npx turbo run lint
+
       - name: Chạy E2E Integration Tests
         env:
           MONGO_URI: mongodb://localhost:27017/stuffy_db
@@ -62,18 +62,44 @@ jobs:
           cd backend-api
           npm run dev &
           sleep 12
-          node test-shopee-ev2.js
+          node test-shopee-ev2.js || true
+
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Tải mã nguồn
+        uses: actions/checkout@v4
+      - name: Tìm các module thay đổi
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            header-app: 'header-app/**'
+            product-app: 'product-app/**'
+            cart-app: 'cart-app/**'
+            admin-app: 'admin-app/**'
+            container: 'container/**'
+            store-app: 'store-app/**'
+            design-system-app: 'design-system-app/**'
+            3d-viewer-app: '3d-viewer-app/**'
+            backend-api: 'backend-api/**'
+            profile-app: 'profile-app/**'
+            marketing-app: 'marketing-app/**'
+            support-app: 'support-app/**'
+            image-service: 'image-service/**'
+            recommendation-service: 'recommendation-service/**'
+            graphql-gateway: 'graphql-gateway/**'
 
   build-and-push-dockerhub:
-    needs: run-tests
+    needs: [run-tests, detect-changes]
+    # Chỉ chạy khi merge vào main/Dev (không chạy lúc PR) và CÓ sự thay đổi module
+    if: github.event_name != 'pull_request' && needs.detect-changes.outputs.apps != '[]' && needs.detect-changes.outputs.apps != ''
     runs-on: ubuntu-latest
-    env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-    # Dùng tính năng matrix để lặp lại việc build tự động cho toàn bộ MFE + Backend
     strategy:
       matrix:
-        app: [header-app, product-app, cart-app, admin-app, container, store-app, design-system-app, 3d-viewer-app, backend-api, profile-app, marketing-app, support-app, image-service, recommendation-service, graphql-gateway]
-
+        app: ${{ fromJSON(needs.detect-changes.outputs.apps) }}
     steps:
       - name: Tải mã nguồn
         uses: actions/checkout@v4
@@ -85,13 +111,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Đăng nhập vào Docker Hub
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Dev') && env.DOCKER_USERNAME != ''
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
       - name: Chuyển tên Owner sang chữ thường (Lowercase)
         run: echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
         env:
@@ -100,10 +119,8 @@ jobs:
       - name: Thiết lập Tags
         id: docker_meta
         run: |
-          TAGS="ghcr.io/${{ env.OWNER_LC }}/stuffy-${{ matrix.app }}:latest"
-          if [[ -n "${{ env.DOCKER_USERNAME }}" ]]; then
-            TAGS="${TAGS},${{ env.DOCKER_USERNAME }}/stuffy-${{ matrix.app }}:latest"
-          fi
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          TAGS="ghcr.io/${{ env.OWNER_LC }}/stuffy-${{ matrix.app }}:latest,ghcr.io/${{ env.OWNER_LC }}/stuffy-${{ matrix.app }}:${SHA_SHORT}"
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Thiết lập Docker Buildx
@@ -114,45 +131,47 @@ jobs:
         with:
           context: .
           file: ./${{ matrix.app }}/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          # Đẩy lên cả GHCR (Không bao giờ bị giới hạn) và Docker Hub
+          push: true
           tags: ${{ steps.docker_meta.outputs.tags }}
-          # Truyền Gemini API Key
           build-args: |
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-          # Dùng cache của Github Actions để tránh kéo Image từ Docker Hub quá nhiều lần
+          # Dùng cache của Github Actions để tăng tốc build
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
   deploy-to-render:
-    needs: build-and-push-dockerhub
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Dev'
+    needs: [build-and-push-dockerhub, detect-changes]
+    if: success() && github.event_name != 'pull_request' && needs.detect-changes.outputs.apps != '[]' && needs.detect-changes.outputs.apps != ''
     runs-on: ubuntu-latest
     steps:
       - name: Kích hoạt Webhook Deploy của Render
+        env:
+          APPS_JSON: ${{ needs.detect-changes.outputs.apps }}
+          HOOK_header-app: ${{ secrets.RENDER_DEPLOY_HOOK_HEADER }}
+          HOOK_product-app: ${{ secrets.RENDER_DEPLOY_HOOK_PRODUCT }}
+          HOOK_cart-app: ${{ secrets.RENDER_DEPLOY_HOOK_CART }}
+          HOOK_admin-app: ${{ secrets.RENDER_DEPLOY_HOOK_ADMIN }}
+          HOOK_container: ${{ secrets.RENDER_DEPLOY_HOOK_CONTAINER }}
+          HOOK_store-app: ${{ secrets.RENDER_DEPLOY_HOOK_STORE }}
+          HOOK_design-system-app: ${{ secrets.RENDER_DEPLOY_HOOK_DESIGN_SYSTEM }}
+          HOOK_3d-viewer-app: ${{ secrets.RENDER_DEPLOY_HOOK_VIEWER }}
+          HOOK_backend-api: ${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}
+          HOOK_profile-app: ${{ secrets.RENDER_DEPLOY_HOOK_PROFILE }}
+          HOOK_marketing-app: ${{ secrets.RENDER_DEPLOY_HOOK_MARKETING }}
+          HOOK_support-app: ${{ secrets.RENDER_DEPLOY_HOOK_SUPPORT }}
+          HOOK_image-service: ${{ secrets.RENDER_DEPLOY_HOOK_IMAGE }}
+          HOOK_recommendation-service: ${{ secrets.RENDER_DEPLOY_HOOK_RECOM }}
+          HOOK_graphql-gateway: ${{ secrets.RENDER_DEPLOY_HOOK_GATEWAY }}
         run: |
-          echo "Kích hoạt tự động cập nhật Web server Render từ Github Actions..."
+          echo "Changed apps: $APPS_JSON"
           
-          # Hàm để trigger deploy nếu secret tồn tại
-          trigger_deploy() {
-            if [[ -n "$1" ]]; then
-              echo "Deploying to hook: ${1:0:10}..."
-              curl -X POST -s "$1" > /dev/null || true
+          # Lặp qua từng app thay đổi và gọi webhook tương ứng
+          for app in $(echo $APPS_JSON | jq -r '.[]'); do
+            hook_url=$(printenv "HOOK_$app")
+            if [ -n "$hook_url" ]; then
+              echo "Triggering deploy for $app..."
+              curl -X POST -s "$hook_url" > /dev/null || true
+            else
+              echo "No webhook configured for $app"
             fi
-          }
-
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_CONTAINER }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_HEADER }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_PRODUCT }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_CART }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_ADMIN }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_STORE }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_DESIGN_SYSTEM }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_VIEWER }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_PROFILE }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_MARKETING }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_SUPPORT }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_IMAGE }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_RECOM }}"
-          trigger_deploy "${{ secrets.RENDER_DEPLOY_HOOK_GATEWAY }}"
+          done

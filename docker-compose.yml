@@ -79,9 +79,12 @@ services:
       - RABBITMQ_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
       - JWT_SECRET=${JWT_SECRET:-stuffy_jwt_secret_change_in_production}
     depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   graphql-gateway:
     build:
@@ -97,6 +100,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -108,6 +116,11 @@ services:
       - RABBITMQ_DEFAULT_PASS=stuffyypass
     volumes:
       - rabbit_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -139,6 +152,11 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   jaeger:
     image: jaegertracing/all-in-one:latest

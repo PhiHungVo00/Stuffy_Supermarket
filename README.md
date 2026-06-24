@@ -73,10 +73,10 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 
 ## 🚀 Quy trình CI/CD (GitHub Actions)
 
-Mọi thay đổi trên toàn bộ monorepo đều được kiểm soát bởi quy trình CI/CD Ma trận thông minh:
-1.  **Linter & Build**: Tự động kiểm tra cú pháp và build cho toàn bộ 15+ apps cùng lúc.
-2.  **Docker Guard**: Đẩy Image lên **GitHub Container Registry (GHCR)** với cơ chế cô lập Build Context.
-3.  **Automatic Provisioning**: Sử dụng **Render Deploy Webhooks** để cập nhật 15+ dịch vụ Cloud ngay khi có commit thành công.
+Mọi thay đổi trên toàn bộ monorepo đều được kiểm soát bởi quy trình CI/CD Thông minh (Smart Pipeline) để tiết kiệm tài nguyên:
+1.  **Smart Linter & Tests**: Tự động kiểm tra cú pháp và chạy bài test tích hợp mỗi khi có Pull Request.
+2.  **Dynamic Matrix Build**: Tự động phân tích commit (Path-filtering) và CHỈ build Image cho những module có thay đổi mã nguồn.
+3.  **Targeted Provisioning**: Kích hoạt **Render Deploy Webhooks** một cách chọn lọc, chỉ ra lệnh cập nhật Cloud cho những dịch vụ vừa được build lại.
 
 ---
 
