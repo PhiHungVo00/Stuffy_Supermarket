@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', protect, async (req: any, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).read('primary');
     res.json(user?.cart || []);
   } catch (error) {
     res.status(500).json({ error: 'Server error fetching cart' });
@@ -15,7 +15,7 @@ router.get('/', protect, async (req: any, res: Response) => {
 
 router.post('/', protect, async (req: any, res: Response) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).read('primary');
     if (!user) return res.status(404).json({ error: 'User not found' });
     user.cart = req.body.cartItems || [];
     await user.save();

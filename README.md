@@ -69,6 +69,11 @@ Dự án sử dụng mô hình **Distributed Monorepo** (chia nhỏ module tại
 -   `STUFFY_INTERNAL_SECRET`: Một chuỗi bí mật bất kỳ dùng cho Zero-Trust Auth.
 -   `OTEL_EXPORTER_OTLP_ENDPOINT`: `https://api.honeycomb.io/v1/traces` (Nếu dùng Honeycomb).
 
+> [!TIP]
+> **Tối ưu hóa Cold Start trên Render:**
+> Đối với 10+ ứng dụng Micro Frontends, **TUYỆT ĐỐI KHÔNG** sử dụng `Web Service` (Docker) trên gói Free vì Render sẽ cho ứng dụng ngủ sau 15 phút, gây ra màn hình trắng (White Screen of Death) do mất đến 60s để đánh thức toàn bộ MFE.
+> **Giải pháp:** Triển khai toàn bộ Frontends dưới dạng **Static Site** trên Render (hoặc Vercel/Netlify). Static Sites hoàn toàn MIỄN PHÍ, không bao giờ bị "ngủ" và thời gian phản hồi chưa tới 10ms!
+
 ---
 
 ## 🚀 Quy trình CI/CD (GitHub Actions)

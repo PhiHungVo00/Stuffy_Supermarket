@@ -176,11 +176,25 @@ app.post('/api/payments/pay', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Idempotency Key (x-idempotency-key) is required for financial safety.' });
     }
 
-    const { amount, currency = 'usd' } = req.body;
+    const { amount, currency = 'usd', walletAddress, signature, nonce } = req.body;
+    
+    // SECURITY FIX: Trusting the client prevention for Web3
+    let finalAmount = amount;
+    if (walletAddress) {
+       if (!signature || !nonce) {
+           return res.status(401).json({ error: 'Signature is required to apply Web3 Loyalty discounts.' });
+       }
+       const isValid = Web3LoyaltyService.verifySignature(walletAddress, signature, nonce);
+       if (!isValid) {
+           return res.status(403).json({ error: 'Invalid Web3 wallet signature. Transaction rejected.' });
+       }
+       // Only apply discount if signature is valid
+       finalAmount = await Web3LoyaltyService.applyLoyaltyDiscounts(amount, walletAddress);
+    }
     
     const result = await PaymentService.createPaymentIntent(
       tenantId, 
-      amount, 
+      finalAmount, 
       currency, 
       idempotencyKey
     );
@@ -385,8 +399,8 @@ Hãy đưa ra câu trả lời tư vấn ngắn gọn, lịch sự, thuyết ph�
 
       const giftValue = giftRates[giftType] || 5;
 
-      // Find buyer
-      const buyer = await User.findById(senderId);
+      // Find buyer (Read from primary to prevent over-spending due to lag)
+      const buyer = await User.findById(senderId).read('primary');
       if (!buyer || (buyer.coinsBalance || 0) < giftValue) {
         socket.emit('GIFT_ERROR', { error: 'Insufficient coins balance to send this gift' });
         return;
@@ -683,6 +697,12 @@ app.post('/api/registry/switch-version', admin, async (req: Request, res: Respon
 
     const target = mfe.versions.find(v => v.version === version);
     if (!target) return res.status(400).json({ message: 'Version not found' });
+
+    // SECURITY VULNERABILITY FIX: Prevent XSS by validating the remote URL domain
+    const allowedDomains = /^https:\/\/(.*\.)?onrender\.com|^http:\/\/localhost:\d+/;
+    if (!allowedDomains.test(target.url)) {
+      return res.status(403).json({ message: 'SECURITY ALERT: Target URL domain is not allowed' });
+    }
 
     mfe.activeUrl = target.url;
     await mfe.save();

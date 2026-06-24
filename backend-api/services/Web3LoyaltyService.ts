@@ -18,6 +18,21 @@ const ERC721_ABI = [
 export class Web3LoyaltyService {
   
   /**
+   * 🛡️ Signature Verification
+   * Verify that the wallet address actually signed the message.
+   */
+  static verifySignature(walletAddress: string, signature: string, nonce: string): boolean {
+    try {
+      if (!walletAddress || !signature) return false;
+      const message = `Stuffy_VIP_Auth_${nonce}`;
+      const recoveredAddress = ethers.verifyMessage(message, signature);
+      return recoveredAddress.toLowerCase() === walletAddress.toLowerCase();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * 🛡️ Verified NFT Ownership
    * Checks if the user's wallet owns at least 1 Stuffy VIP NFT.
    */

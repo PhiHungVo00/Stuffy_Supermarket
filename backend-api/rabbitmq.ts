@@ -18,10 +18,23 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
         connection = await amqp.connect(RABBITMQ_URL);
         channel = await connection.createChannel();
         
-        // Define Queues
-        await channel.assertQueue('INVENTORY_SYNC', { durable: true });
-        await channel.assertQueue('EMAIL_NOTIFICATIONS', { durable: true });
-        await channel.assertQueue('user_behavior_tracking', { durable: true });
+        // Setup Dead-Letter Exchange (DLX) and Queue (DLQ)
+        const DLX = 'dlx_stuffy';
+        const DLQ = 'dlq_stuffy';
+        await channel.assertExchange(DLX, 'direct', { durable: true });
+        await channel.assertQueue(DLQ, { durable: true });
+        await channel.bindQueue(DLQ, DLX, 'dead_letter');
+
+        const queueOptions = { 
+            durable: true, 
+            deadLetterExchange: DLX, 
+            deadLetterRoutingKey: 'dead_letter' 
+        };
+        
+        // Define Queues with DLX protection
+        await channel.assertQueue('INVENTORY_SYNC', queueOptions);
+        await channel.assertQueue('EMAIL_NOTIFICATIONS', queueOptions);
+        await channel.assertQueue('user_behavior_tracking', queueOptions);
         
         console.log(`[RabbitMQ] Connected and queues initialized.`);
 
