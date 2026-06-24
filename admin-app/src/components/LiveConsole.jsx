@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import { Line } from "react-chartjs-2";
 import {
@@ -236,7 +236,7 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
       });
       setComments(prev => [...prev, {
         userName: "system_bot",
-        comment: `🎉 [Đơn hàng mới] Khách hàng vừa chốt thành công "${productName}" trị giá $${amount}! 💸`
+comment: `[Đơn hàng mới] Khách hàng vừa chốt thành công "${productName}" trị giá $${amount}!`
       }]);
     });
 
@@ -244,13 +244,13 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
       setGifts((prev) => [
         {
           id: Date.now(),
-          text: `🎁 ${gift.userName} sent you a ${gift.giftType}! (+${Math.floor(gift.giftValue * 0.9)} coins)`
+text: `[Gift] ${gift.userName} sent you a ${gift.giftType}! (+${Math.floor(gift.giftValue * 0.9)} coins)`
         },
         ...prev
       ]);
       setComments((prev) => [
         ...prev,
-        { userName: "system_gift", comment: `🎁 ${gift.userName} sent a ${gift.giftType}!` }
+{ userName: "system_gift", comment: `[Gift] ${gift.userName} sent a ${gift.giftType}!` }
       ]);
     });
 
@@ -412,7 +412,7 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
                 />
               ) : (
                 <div style={{ width: "120px", height: "120px", borderRadius: "50%", border: "4px solid #10b981", borderTopColor: "transparent", animation: "spin 2s linear infinite", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                  <span style={{ fontSize: "3rem" }}>📹</span>
+<span style={{ fontSize: "3rem" }}>[Camera]</span>
                 </div>
               )}
               
@@ -423,13 +423,13 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
               {/* Stats Bar overlay */}
               <div style={{ position: "absolute", top: "20px", left: "20px", display: "flex", gap: "10px", zIndex: 10 }}>
                 <span style={{ background: "#ef4444", color: "white", fontSize: "0.75rem", fontWeight: "bold", padding: "4px 10px", borderRadius: "6px" }}>LIVE</span>
-                <span style={{ background: "rgba(0,0,0,0.6)", color: "white", fontSize: "0.75rem", padding: "4px 10px", borderRadius: "6px" }}>👤 {viewers} Viewers</span>
-                <span style={{ background: "rgba(0,0,0,0.6)", color: "white", fontSize: "0.75rem", padding: "4px 10px", borderRadius: "6px" }}>❤️ {likes} Likes</span>
+<span style={{ background: "rgba(0,0,0,0.6)", color: "white", fontSize: "0.75rem", padding: "4px 10px", borderRadius: "6px" }}>[User] {viewers} Viewers</span>
+<span style={{ background: "rgba(0,0,0,0.6)", color: "white", fontSize: "0.75rem", padding: "4px 10px", borderRadius: "6px" }}>[Like] {likes} Likes</span>
               </div>
             </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px", width: "100%", boxSizing: "border-box" }}>
-              <span style={{ fontSize: "3rem" }}>🎥</span>
+<span style={{ fontSize: "3rem" }}>[Live]</span>
               <h3 style={{ color: "#64748b", marginTop: "10px" }}>Stream Offline</h3>
               <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "5px 0 10px 0" }}>Start your broadcast to interact with your customers.</p>
               
@@ -510,7 +510,7 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
               fontSize: "0.82rem"
             }}
           >
-            💬 Trò chuyện
+[Chat] Trò chuyện
           </button>
           <button 
             onClick={() => setActiveTab("gifts")}
@@ -526,7 +526,7 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
               fontSize: "0.82rem"
             }}
           >
-            🎁 Quà tặng
+[Gift] Quà tặng
           </button>
           <button 
             onClick={() => setActiveTab("analytics")}
@@ -542,7 +542,7 @@ const LiveConsole = ({ apiBase, getToken, products }) => {
               fontSize: "0.82rem"
             }}
           >
-            📊 Thống kê Live
+[Chart] Thống kê Live
           </button>
         </div>
 

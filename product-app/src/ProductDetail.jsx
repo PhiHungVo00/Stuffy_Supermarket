@@ -588,7 +588,7 @@ export default function ProductDetail() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '1.05rem' }}>{review.name}</div>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontSize: '0.72rem', fontWeight: '700', background: '#dcfce7', padding: '2px 8px', borderRadius: '99px' }}>
-                            ✓ {t('verified_buyer')}
+                            [Verified] {t('verified_buyer')}
                           </span>
                         </div>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{new Date(review.createdAt).toLocaleDateString()}</div>
@@ -607,7 +607,7 @@ export default function ProductDetail() {
                       fontSize: '0.9rem'
                     }}>
                       <div style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>🏪</span> {t('seller_response') || 'Seller Response'}
+                        <span>[Store]</span> {t('seller_response') || 'Seller Response'}
                       </div>
                       <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: '1.5' }}>{review.reply}</p>
                     </div>
@@ -617,7 +617,7 @@ export default function ProductDetail() {
             </div>
           ) : (
             <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '16px', border: '2px dashed var(--border-light)' }}>
-              <span style={{ fontSize: '3rem', opacity: 0.2 }}>📝</span>
+              <span style={{ fontSize: '3rem', opacity: 0.2 }}>[Note]</span>
               <p style={{ margin: '10px 0 0 0', color: 'var(--text-muted)' }}>{t('no_reviews_yet')}</p>
             </div>
           )}
@@ -660,7 +660,7 @@ export default function ProductDetail() {
                   onClick={(e) => { e.stopPropagation(); toggleWishlist(p); }} 
                   style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,255,255,0.9)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', zIndex: 2, fontSize: '0.9rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}
                 >
-                  {wishlist.some(w => w.id === p.id) ? '❤️' : '🤍'}
+                  {wishlist.some(w => w.id === p.id) ? '[Liked]' : '[Like]'}
                 </button>
 
                 <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '15px', marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>

@@ -12,7 +12,7 @@ export default function WishlistPage() {
   if (wishlist.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-        <div style={{ fontSize: '5rem', opacity: 0.15, marginBottom: '20px' }}>❤️</div>
+        <div style={{ fontSize: '5rem', opacity: 0.15, marginBottom: '20px' }}>[Heart]</div>
         <h2 style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '10px' }}>{t('wishlist_empty')}</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>{t('wishlist_empty_desc')}</p>
       </div>

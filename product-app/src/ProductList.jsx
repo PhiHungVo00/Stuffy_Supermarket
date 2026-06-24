@@ -200,7 +200,7 @@ export default function ProductList() {
         {aiMatches !== null && (
           <div style={{ marginBottom: '24px', padding: '14px 20px', background: 'linear-gradient(135deg,#eef2ff,#f5f3ff)', borderRadius: '14px', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.3rem' }}>✨</span>
+              <span style={{ fontSize: '1.3rem' }}>*</span>
               <div>
                 <p style={{ margin: 0, fontWeight: '800', color: '#4338ca', fontSize: '0.95rem' }}>{t(aiMatches.length === 1 ? 'ai_found_product' : 'ai_found_products', { count: aiMatches.length })}</p>
                 <p style={{ margin: 0, color: '#6366f1', fontSize: '0.82rem' }}>{t('other_products_dimmed')}</p>
@@ -253,7 +253,7 @@ export default function ProductList() {
                       aria-label={wishlist.some(w => w.id === p.id) ? "Xóa khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
                       style={{ position: 'absolute', top: '12px', right: '100px', background: 'rgba(255,255,255,0.9)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', zIndex: 2, fontSize: '1rem', transition: 'all 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}
                     >
-                      {wishlist.some(w => w.id === p.id) ? '❤️' : '🤍'}
+                      {wishlist.some(w => w.id === p.id) ? '[Liked]' : '[Like]'}
                     </button>
 
                     <div style={{ background: '#f1f5f9', borderRadius: '12px', padding: '20px', marginBottom: '15px', display: 'flex', justifyContent: 'center', transition: 'all 0.3s', cursor: 'pointer' }} onClick={() => navigate(`/product/${p.id}`)}>

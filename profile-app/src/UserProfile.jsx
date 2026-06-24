@@ -198,9 +198,9 @@ export default function UserProfile() {
 
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[
-            { key: 'orders', icon: '📦', label: t('my_orders') },
-            { key: 'addresses', icon: '📍', label: t('address_book') },
-            { key: 'settings', icon: '⚙️', label: t('account_settings') },
+            { key: 'orders', icon: '[Box]', label: t('my_orders') },
+            { key: 'addresses', icon: '[Pin]', label: t('address_book') },
+            { key: 'settings', icon: '[Settings]', label: t('account_settings') },
           ].map(tab => (
             <li key={tab.key}>
               <button onClick={() => setActiveTab(tab.key)} style={{ width: '100%', textAlign: 'left', padding: '12px 20px', borderRadius: '12px', background: activeTab === tab.key ? 'var(--primary-color)' : 'transparent', color: activeTab === tab.key ? 'white' : 'var(--text-main)', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -221,7 +221,7 @@ export default function UserProfile() {
               <p>{t('loading')}</p>
             ) : orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '80px 20px', background: '#f8fafc', borderRadius: '24px', border: '2px dashed var(--border-light)' }}>
-                <span style={{ fontSize: '3rem', opacity: 0.5 }}>🛍️</span>
+                <span style={{ fontSize: '3rem', opacity: 0.5 }}>[Bag]</span>
                 <h3 style={{ margin: '15px 0 5px 0', color: 'var(--text-main)' }}>{t('no_pending_orders')}</h3>
                 <p style={{ color: 'var(--text-muted)' }}>{t('no_purchase_yet')}</p>
               </div>
@@ -286,14 +286,14 @@ export default function UserProfile() {
                           </span>
                           {order.shippingLabelUrl && (
                             <a href={order.shippingLabelUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary-color)', fontWeight: 'bold', textDecoration: 'none' }}>
-                              📄 {t('view_shipping_label')}
+                              [Doc] {t('view_shipping_label')}
                             </a>
                           )}
                         </div>
 
                         {/* Estimated Delivery Date Display */}
                         <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                          <span style={{ fontSize: '1.1rem' }}>📅</span>
+                          <span style={{ fontSize: '1.1rem' }}>[Date]</span>
                           <span style={{ fontWeight: '700' }}>
                             Ngày giao dự kiến: <span style={{ color: '#4f46e5' }}>{order.estimatedDeliveryDate 
                               ? new Date(order.estimatedDeliveryDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
@@ -404,7 +404,7 @@ export default function UserProfile() {
                           padding: '4px 10px',
                           borderRadius: '6px'
                         }}>
-                          🛡️ {t('shopee_guarantee')} {
+                          [Shield] {t('shopee_guarantee')} {
                             order.escrowStatus === 'released' ? t('escrow_released') :
                             (order.escrowStatus === 'disputed' ? t('escrow_disputed') : t('escrow_refunded'))
                           }

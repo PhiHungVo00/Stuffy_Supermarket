@@ -283,7 +283,7 @@ export default function FloatingChat() {
           onMouseOver={e=>e.currentTarget.style.transform='scale(1.1)'}
           onMouseOut={e=>e.currentTarget.style.transform='scale(1)'}
         >
-          💬
+          [Chat]
         </button>
       )}
 
@@ -295,7 +295,7 @@ export default function FloatingChat() {
           <div style={{ background: 'var(--primary-color)', padding: '15px 20px', color: 'white', display: 'flex', flexDirection: 'column', gap: '8px' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                   <div style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.1rem' }}>⚡</div>
+<div style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.1rem' }}>[⚡]</div>
                    <div style={{ fontWeight: 'bold', fontSize: '1.05rem' }}>{t('stuffy_customer_hub')}</div>
                 </div>
                 <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.5rem', opacity: 0.8 }}>×</button>
@@ -307,13 +307,13 @@ export default function FloatingChat() {
                   onClick={() => setActiveTab('ai')}
                   style={{ flex: 1, border: 'none', padding: '6px', background: activeTab === 'ai' ? 'white' : 'transparent', color: activeTab === 'ai' ? 'var(--primary-color)' : 'white', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem', transition: 'all 0.2s' }}
                 >
-                  🤖 {t('ai_copilot')}
+[Bot] {t('ai_copilot')}
                 </button>
                 <button 
                   onClick={() => setActiveTab('seller')}
                   style={{ flex: 1, border: 'none', padding: '6px', background: activeTab === 'seller' ? 'white' : 'transparent', color: activeTab === 'seller' ? 'var(--primary-color)' : 'white', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem', transition: 'all 0.2s' }}
                 >
-                  🏪 {t('shop_chat')}
+[Store] {t('shop_chat')}
                 </button>
              </div>
           </div>
@@ -371,7 +371,7 @@ export default function FloatingChat() {
                    style={{ flex: 1, padding: '12px 16px', borderRadius: '99px', border: '1px solid var(--border-light)', outline: 'none', fontSize: '0.9rem' }} 
                  />
                  <button type="submit" disabled={aiLoading} style={{ width: '45px', height: '45px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: aiLoading ? 0.6 : 1 }}>
-                    🚀
+[Rocket]
                  </button>
               </form>
             </React.Fragment>
@@ -383,7 +383,7 @@ export default function FloatingChat() {
               {!userInfo ? (
                 // Enforce authorization
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', background: '#f8fafc', textAlign: 'center' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔒</div>
+<div style={{ fontSize: '3rem', marginBottom: '10px' }}>[Lock]</div>
                   <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold' }}>{t('auth_required')}</h4>
                   <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>{t('login_to_chat_desc')}</p>
                 </div>
@@ -567,7 +567,7 @@ export default function FloatingChat() {
                          style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', padding: '0 5px' }}
                          title="Đính kèm đơn hàng"
                        >
-                         📦
+[Box]
                        </button>
                      )}
                      
@@ -579,7 +579,7 @@ export default function FloatingChat() {
                        style={{ flex: 1, padding: '12px 16px', borderRadius: '99px', border: '1px solid var(--border-light)', outline: 'none', fontSize: '0.9rem' }} 
                      />
                      <button type="submit" disabled={!sellerInput.trim()} style={{ width: '45px', height: '45px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: sellerInput.trim() ? 1 : 0.5 }}>
-                        🚀
+    [Rocket]
                      </button>
 
                      {/* Order Attachment Dropdown */}

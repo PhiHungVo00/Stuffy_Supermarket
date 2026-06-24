@@ -26,7 +26,7 @@ if (GEMINI_API_KEY && GEMINI_API_KEY !== 'mock_gemini_key') {
 }
 
 /**
- * 🛡️ ZERO TRUST MIDDLEWARE
+ * [Shield] ZERO TRUST MIDDLEWARE
  */
 const interServiceAuth = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers['x-internal-service-auth'] as string;
@@ -57,7 +57,7 @@ const redis = createClient({
     socket: {
         reconnectStrategy: (retries) => {
             if (retries > 10) {
-                console.warn('[Redis] 🛑 Maximum reconnection attempts reached. Giving up.');
+console.warn('[Redis] [Stop] Maximum reconnection attempts reached. Giving up.');
                 return false; // Stop retrying
             }
             return Math.min(retries * 100, 3000); // Exponential backoff
@@ -65,15 +65,15 @@ const redis = createClient({
     }
 });
 
-redis.on('error', (err) => console.error('[Redis] ❌ Connection Error:', err));
+redis.on('error', (err) => console.error('[Redis] [X] Connection Error:', err));
 
 // Secure Connection Logic (Non-blocking crash prevention)
 const connectServices = async () => {
     try {
         await redis.connect();
-        console.log('[Redis] ✅ Connected successfully.');
+console.log('[Redis] [OK] Connected successfully.');
     } catch (e) {
-        console.error('[Redis] ⚠️ Fallback: Continuing without Redis. Some features will be limited.');
+console.error('[Redis] [Warn] Fallback: Continuing without Redis. Some features will be limited.');
     }
 };
 
@@ -85,7 +85,7 @@ async function trackInteraction(userId: string, productId: string) {
         console.warn('[Recom] Redis is not open/connected. Skipping tracking.');
         return;
     }
-    console.log(`[Recom] 📈 Tracking click for User ${userId} on Product ${productId}`);
+console.log(`[Recom] [Up] Tracking click for User ${userId} on Product ${productId}`);
     
     // Simple Collaborative Filtering: 
     // If we view Product A, what else have OTHER users viewed alongside it?
@@ -141,7 +141,7 @@ async function getGeminiRecommendations(productId: string, redisCorrelations: { 
 async function startConsumer() {
     try {
         if (!process.env.RABBIT_URL) {
-            console.warn("[Amqp] ⚠️ Missing RABBIT_URL. Consumer not started.");
+console.warn("[Amqp] [Warn] Missing RABBIT_URL. Consumer not started.");
             return;
         }
         const conn = await amqp.connect(RABBIT_URL);
@@ -149,7 +149,7 @@ async function startConsumer() {
         const queue = 'user_behavior_tracking';
         
         await channel.assertQueue(queue, { durable: true });
-        console.log(`[Recom] 🐰 Listening for behaviors on: ${queue}`);
+console.log(`[Recom] [Rabbit] Listening for behaviors on: ${queue}`);
 
         channel.consume(queue, (msg) => {
             if (msg) {
@@ -159,7 +159,7 @@ async function startConsumer() {
             }
         });
     } catch (err) { 
-        console.error('[RabbitMQ] ❌ Failure: Service will operate without real-time tracking.', err);
+console.error('[RabbitMQ] [X] Failure: Service will operate without real-time tracking.', err);
     }
 }
 
@@ -208,6 +208,6 @@ app.get('/api/recommendations/:id', async (req, res) => {
 
 const PORT = process.env.PORT || 3010;
 app.listen(Number(PORT), () => {
-    console.log(`[Recom] 🚀 Recommendation Microservice is LIVE on port ${PORT}`);
+console.log(`[Recom] [Rocket] Recommendation Microservice is LIVE on port ${PORT}`);
     startConsumer();
 });

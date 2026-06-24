@@ -114,7 +114,7 @@ export default function Storefront() {
           onMouseOver={e => e.target.style.transform = 'scale(1.03)'}
           onMouseOut={e => e.target.style.transform = 'scale(1)'}
         >
-          💬 {t('chat_with_seller')}
+          [Chat] {t('chat_with_seller')}
         </button>
       </div>
 

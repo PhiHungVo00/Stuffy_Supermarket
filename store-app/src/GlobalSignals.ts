@@ -19,7 +19,7 @@ export const isAdmin = computed(() => currentUser.value?.role === 'admin');
 
 // 3. Effects (Side-effects)
 effect(() => {
-  console.log(`[EliteState] 🚀 Cart changed: ${cartCount.value} items`);
+console.log(`[EliteState] [Rocket] Cart changed: ${cartCount.value} items`);
   // Sync with local storage or broadcast to legacy systems
 });
 
