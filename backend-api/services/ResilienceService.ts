@@ -41,8 +41,8 @@ const breaker = new CircuitBreaker(fetchOptimizedImage, options);
 // 🎨 Fallback Action
 breaker.fallback(() => {
   console.warn("[CircuitBreaker] 🚨 Image Service IS DOWN! 🚧 Serving Fallback Assets.");
-  // Provide a beautiful, high-quality placeholder image if the microservice is dead
-  return "https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=800&auto=format&fit=crop"; 
+  // Provide a safe placeholder image if the microservice is dead to prevent misleading users
+  return "https://via.placeholder.com/800x800/e2e8f0/475569?text=Image+Not+Available"; 
 });
 
 breaker.on('open', () => console.error(`[Resilience] 🔓 Circuit OPEN for ImageService. Stopping all requests.`));

@@ -46,6 +46,10 @@ const ProductSchema = new Schema<IProduct>({
   shop: { type: Schema.Types.ObjectId, ref: 'Shop', required: true },
 }, { timestamps: true });
 
+ProductSchema.index({ category: 1 });
+ProductSchema.index({ shop: 1 });
+ProductSchema.index({ name: 'text', description: 'text' });
+
 import { handleProductChange, getIsChangeStreamActive } from '../services/CacheInvalidationService';
 
 // Fallback cache invalidation hooks (used if MongoDB Change Streams are not active)

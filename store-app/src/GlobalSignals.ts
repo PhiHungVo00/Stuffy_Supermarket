@@ -8,9 +8,16 @@ import { signal, effect, computed } from "@preact/signals-react";
  * anywhere in the Micro-frontend tree.
  */
 
-// 1. Core State Signals
-export const cartCount = signal(0);
-export const currentUser = signal<any>(null);
+// 1. Core State Signals (with Persistence)
+const initialCartCount = typeof window !== 'undefined' && localStorage.getItem('cartCount') 
+  ? parseInt(localStorage.getItem('cartCount') || '0', 10) 
+  : 0;
+const initialUser = typeof window !== 'undefined' && localStorage.getItem('currentUser') 
+  ? JSON.parse(localStorage.getItem('currentUser') || 'null') 
+  : null;
+
+export const cartCount = signal(initialCartCount);
+export const currentUser = signal<any>(initialUser);
 export const activeTenant = signal('default_store');
 export const isDarkMode = signal(false);
 
@@ -19,8 +26,11 @@ export const isAdmin = computed(() => currentUser.value?.role === 'admin');
 
 // 3. Effects (Side-effects)
 effect(() => {
-console.log(`[EliteState] [Rocket] Cart changed: ${cartCount.value} items`);
-  // Sync with local storage or broadcast to legacy systems
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('cartCount', cartCount.value.toString());
+    localStorage.setItem('currentUser', JSON.stringify(currentUser.value));
+  }
+  console.log(`[EliteState] [Rocket] Cart changed: ${cartCount.value} items`);
 });
 
 // 4. Action Helpers

@@ -165,4 +165,8 @@ const orderSchema = new Schema<IOrder>(
   }
 );
 
+orderSchema.index({ user: 1 });
+orderSchema.index({ shop: 1 });
+orderSchema.index({ status: 1 });
+
 export default mongoose.model<IOrder>('Order', orderSchema);
