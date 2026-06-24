@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@stuffy/*": ["../packages/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "__tests__", "**/*.test.ts"]
+}

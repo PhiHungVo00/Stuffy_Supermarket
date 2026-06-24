@@ -29,7 +29,7 @@ import { getResilientImage } from './services/ResilienceService';
 import { Web3LoyaltyService } from './services/Web3LoyaltyService';
 import MfeModule from './models/MfeModule';
 import Voucher from './models/Voucher';
-import authRoutes from './routes/auth';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import cartRoutes from './routes/cart';
 import orderRoutes from './routes/orders';
 import addressRoutes from './routes/addresses';
@@ -134,7 +134,7 @@ app.use(cookieParser());
 app.use(seoPrerender);
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', createProxyMiddleware({ target: process.env.AUTH_SERVICE_URL || 'http://localhost:5001', changeOrigin: true }));
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);

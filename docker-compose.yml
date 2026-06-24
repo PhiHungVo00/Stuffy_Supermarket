@@ -78,12 +78,31 @@ services:
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
       - JWT_SECRET=${JWT_SECRET:-stuffy_jwt_secret_change_in_production}
+      - AUTH_SERVICE_URL=http://auth-service:5001
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+
+  auth-service:
+    build:
+      context: ./auth-service
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/stuffy_db?replicaSet=rs0
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://stuffy:stuffyypass@rabbitmq:5672
+      - JWT_SECRET=${JWT_SECRET:-stuffy_jwt_secret_change_in_production}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   graphql-gateway:
