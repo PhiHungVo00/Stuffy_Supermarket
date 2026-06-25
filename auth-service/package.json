@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); if(fs.existsSync('./dist/auth-service/server.js')) fs.writeFileSync('./dist/server.js', 'require(\\'./auth-service/server.js\\');')\"",
     "test": "jest"
   },
   "dependencies": {

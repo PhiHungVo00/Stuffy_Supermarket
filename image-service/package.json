@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); if(fs.existsSync('./dist/image-service/server.js')) fs.writeFileSync('./dist/server.js', 'require(\\'./image-service/server.js\\');')\"",
     "test": "jest"
   },
   "keywords": [],

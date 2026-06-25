@@ -4,7 +4,7 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); if(fs.existsSync('./dist/recommendation-service/server.js')) fs.writeFileSync('./dist/server.js', 'require(\\'./recommendation-service/server.js\\');')\"",
     "start": "node dist/server.js",
     "dev": "ts-node --esm src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

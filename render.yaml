@@ -29,7 +29,7 @@ services:
     name: stuffy-backend-api
     env: node
     buildCommand: npm install --include=dev && npx turbo run build --filter=backend-api
-    startCommand: cd backend-api && node dist/backend-api/server.js
+    startCommand: cd backend-api && node dist/server.js
     envVars:
       - fromGroup: stuffy-global-env
 
