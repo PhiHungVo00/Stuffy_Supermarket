@@ -11,7 +11,7 @@ const isDevServer = process.env.WEBPACK_SERVE === 'true' || process.env.WEBPACK_
 // Auto-detect environment: use .env for local dev, fall back to process.env for Render deployment
 // Helper to generate dynamic remote promise for Webpack Module Federation
 module.exports = {
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/index.js",
 
   devServer: {

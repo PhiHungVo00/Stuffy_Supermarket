@@ -4,7 +4,7 @@ const path = require("path");
 
 module.exports = {
   entry: "./src/index",
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
   devServer: {
     port: 3008,
     static: { directory: path.join(__dirname, "public") },

@@ -1,10 +1,10 @@
-﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const webpack = require("webpack");
 require("dotenv").config();
 
 module.exports = {
-  mode: "development",
+  mode: process.env.NODE_ENV === "production" ? "production" : "development",
 
   entry: "./src/index.js",
 
@@ -24,7 +24,7 @@ module.exports = {
     rules: [
       {
         test: /\.m?js$/,
-        type: "javascript/auto",   // ðŸ”¥ QUAN TRá»ŒNG
+        type: "javascript/auto",   // 🔥 QUAN TRỌNG
         resolve: {
           fullySpecified: false,
         },
