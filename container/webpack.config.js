@@ -100,7 +100,7 @@ module.exports = {
     }),
 
     // PWA: Generate Service Worker (disabled in local dev to prevent infinite reload loops)
-    ...((process.env.NODE_ENV === 'production' && !isDevServer) ? [
+    ...((!isDevServer) ? [
 
       new GenerateSW({
         clientsClaim: true,
