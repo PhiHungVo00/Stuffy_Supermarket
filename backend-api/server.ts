@@ -123,19 +123,25 @@ const ALLOWED_ORIGINS = [
   'https://stuffy-design-system-app.onrender.com',
 ];
 
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+const authServiceTarget = isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001';
+
 app.use(cors({
   origin: true,
   credentials: true
 }));
+
+app.use('/api/auth', createProxyMiddleware({ 
+  target: authServiceTarget, 
+  changeOrigin: true,
+  pathRewrite: { '^/': '/api/auth/' }
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(seoPrerender);
 
 // Routes
-const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
-const authServiceTarget = isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001';
-
-app.use('/api/auth', createProxyMiddleware({ target: authServiceTarget, changeOrigin: true }));
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
