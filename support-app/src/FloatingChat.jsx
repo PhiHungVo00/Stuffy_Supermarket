@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import { useI18nStore } from "store/i18n";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
-const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+const API_BASE = isProduction ? 'https://stuffy-backend-api-xmln.onrender.com' : 'http://localhost:5000';
 
 export default function FloatingChat() {
   const { t } = useI18nStore();

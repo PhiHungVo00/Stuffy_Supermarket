@@ -116,7 +116,7 @@ module.exports = {
             },
           },
           {
-            urlPattern: /https:\/\/stuffy-backend-api.onrender.com\/api/,
+            urlPattern: /https:\/\/stuffy-backend-api-xmln.onrender.com\/api/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',

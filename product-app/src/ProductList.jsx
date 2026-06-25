@@ -69,7 +69,7 @@ export default function ProductList() {
 
   useEffect(() => {
     const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
-    const socketUrl = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+    const socketUrl = isProduction ? 'https://stuffy-backend-api-xmln.onrender.com' : 'http://localhost:5000';
     const socket = io(socketUrl);
 
     socket.on("PRICE_UPDATED", (updatedProduct) => {

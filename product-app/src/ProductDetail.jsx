@@ -7,7 +7,7 @@ import Button from "design_system/Button";
 import { useI18nStore } from "store/i18n";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
-const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+const API_BASE = isProduction ? 'https://stuffy-backend-api-xmln.onrender.com' : 'http://localhost:5000';
 
 // Lazy-load the 3D viewer (2MB+) — only fetched when user clicks "View in 3D"
 const Viewer3D = React.lazy(() => import("viewer/Viewer"));

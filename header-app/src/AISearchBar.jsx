@@ -91,7 +91,7 @@ export default function AISearchBar() {
 
     try {
       // Calling our NEW Centralized AI Backend Search
-      const response = await fetch('https://stuffy-backend-api.onrender.com/api/ai/context-search', {
+      const response = await fetch('https://stuffy-backend-api-xmln.onrender.com/api/ai/context-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })

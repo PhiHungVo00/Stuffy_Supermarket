@@ -39,7 +39,7 @@ router.post('/fulfill', protect, async (req: any, res: Response) => {
     const trackingNumber = `STUFFY-${carrier.toUpperCase()}-${order._id.toString().substring(18).toUpperCase()}`;
     
     const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
-    const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+    const API_BASE = isProduction ? 'https://stuffy-backend-api-xmln.onrender.com' : 'http://localhost:5000';
     const shippingLabelUrl = `${API_BASE}/api/shipping/label/${order._id}`;
 
     order.status = 'Processing';

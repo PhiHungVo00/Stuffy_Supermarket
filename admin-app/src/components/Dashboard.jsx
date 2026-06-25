@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
-const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
+const API_BASE = isProduction ? 'https://stuffy-backend-api-xmln.onrender.com' : 'http://localhost:5000';
 
 export default function Dashboard({ products }) {
   const [orders, setOrders] = useState([]);

@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import { useI18nStore } from 'store/i18n';
 
 const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.'));
-const API_BASE = isLocalhost ? 'http://localhost:5000' : 'https://stuffy-backend-api.onrender.com';
+const API_BASE = isLocalhost ? 'http://localhost:5000' : 'https://stuffy-backend-api-xmln.onrender.com';
 
 const playBeepSound = () => {
   try {
