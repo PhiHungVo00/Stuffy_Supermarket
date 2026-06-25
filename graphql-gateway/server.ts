@@ -26,12 +26,15 @@ redis.on('error', (err) => console.error('[Gateway] ❌ Redis Connection Error:'
 
 // Detect Production for Subgraphs
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
-const PRODUCTS_URL = process.env.PRODUCTS_SERVICE_URL || (isProduction 
-  ? 'https://stuffy-backend-api.onrender.com/graphql' 
-  : 'http://localhost:5000/graphql');
-const AUTH_URL = process.env.AUTH_SERVICE_URL || (isProduction 
-  ? 'https://stuffy-auth-service.onrender.com/graphql' 
-  : 'http://localhost:5001/graphql');
+const productsEnv = process.env.PRODUCTS_SERVICE_URL;
+const PRODUCTS_URL = productsEnv 
+  ? (productsEnv.endsWith('/graphql') ? productsEnv : `${productsEnv}/graphql`)
+  : (isProduction ? 'https://stuffy-backend-api.onrender.com/graphql' : 'http://localhost:5000/graphql');
+
+const authEnv = process.env.AUTH_SERVICE_URL;
+const AUTH_URL = authEnv 
+  ? (authEnv.endsWith('/graphql') ? authEnv : `${authEnv}/graphql`)
+  : (isProduction ? 'https://stuffy-auth-service.onrender.com/graphql' : 'http://localhost:5001/graphql');
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
