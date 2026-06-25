@@ -55,8 +55,6 @@ export const typeDefs = gql`
   }
 `;
 
-import { getCachedData, setCachedData } from './redis';
-
 // 🔒 SECURITY FIX: Prevent ReDoS
 const escapeRegex = (text: string) => {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
