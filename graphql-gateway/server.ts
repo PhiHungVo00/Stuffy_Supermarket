@@ -91,6 +91,8 @@ const authCheckoutLimiter = rateLimit({
 });
 
 const app = express();
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
 const httpServer = http.createServer(app);
 
 // Configure the Gateway to pull from our subgraphs
@@ -192,10 +194,7 @@ async function startServer() {
     'http://localhost:3000'
   ];
 
-  app.use(cors({
-    origin: true,
-    credentials: true
-  }), express.json());
+
   app.use(limiter);
 
   // Apply stricter rate limiting dynamically on auth or checkout mutations
