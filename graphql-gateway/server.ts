@@ -193,13 +193,7 @@ async function startServer() {
   ];
 
   app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.onrender.com')) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
+    origin: true,
     credentials: true
   }), express.json());
   app.use(limiter);

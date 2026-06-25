@@ -124,13 +124,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.onrender.com')) {
-      callback(null, true);
-    } else {
-      callback(null, false);
-    }
-  },
+  origin: true,
   credentials: true
 }));
 app.use(express.json());
@@ -218,13 +212,7 @@ app.post('/api/payments/pay', async (req: Request, res: Response) => {
 const server = http.createServer(app);
 const io = new Server(server, { 
   cors: { 
-    origin: (origin, callback) => {
-      if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.onrender.com')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: true,
     credentials: true 
   } 
 });
