@@ -138,7 +138,12 @@ app.use(cookieParser());
 app.use(seoPrerender);
 
 // Routes
-app.use('/api/auth', createProxyMiddleware({ target: process.env.AUTH_SERVICE_URL || 'http://localhost:5001', changeOrigin: true }));
+const isProduction = process.env.NODE_ENV === 'production';
+const authServiceTarget = process.env.AUTH_SERVICE_URL 
+  ? process.env.AUTH_SERVICE_URL.replace('/graphql', '') 
+  : (isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001');
+
+app.use('/api/auth', createProxyMiddleware({ target: authServiceTarget, changeOrigin: true }));
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
