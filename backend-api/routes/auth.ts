@@ -9,7 +9,7 @@ import { protect } from '../middleware/auth';
 const router = express.Router();
 
 if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
+  if ((process.env.NODE_ENV === 'production' || process.env.RENDER === 'true')) {
     throw new Error('FATAL: JWT_SECRET environment variable is required. Server cannot start without it.');
   } else {
     console.warn("WARNING: JWT_SECRET environment variable is not set. Using 'fallback_secret_stuffy' as development default.");
@@ -64,8 +64,8 @@ router.post('/register', async (req: Request, res: Response) => {
       
       res.cookie('jwt', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true'),
+        sameSite: (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') ? 'none' : 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
@@ -97,8 +97,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
       res.cookie('jwt', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true'),
+        sameSite: (process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') ? 'none' : 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
