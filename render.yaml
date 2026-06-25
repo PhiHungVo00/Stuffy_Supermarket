@@ -158,7 +158,7 @@ services:
   - type: web
     env: static
     name: stuffy-design-system-app
-    buildCommand: npm install --include=dev && npx turbo run build --filter=design-system-app
+    buildCommand: npm install --include=dev && npx turbo run build --filter=@stuffy/design-system
     staticPublishPath: design-system-app/dist
     envVars:
       - key: NODE_ENV
