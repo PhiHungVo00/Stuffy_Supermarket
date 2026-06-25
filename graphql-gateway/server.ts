@@ -102,6 +102,7 @@ const gateway = new ApolloGateway({
 
 const server = new ApolloServer({
   gateway,
+  introspection: true,
   plugins: [
     {
       async requestDidStart() {

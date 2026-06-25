@@ -60,6 +60,7 @@ const app = express();
 
 const apolloServer = new ApolloServer({
   schema,
+  introspection: true,
 });
 
 async function startApollo() {
