@@ -29,25 +29,24 @@ services:
     env: node
     buildCommand: npm install && npx turbo run build --filter=backend-api
     startCommand: cd backend-api && node dist/server.js
-    envVarGroups:
-      - stuffy-global-env
+    envVars:
+      - fromGroup: stuffy-global-env
 
   - type: web
     name: stuffy-auth-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=auth-service
     startCommand: cd auth-service && node dist/server.js
-    envVarGroups:
-      - stuffy-global-env
+    envVars:
+      - fromGroup: stuffy-global-env
 
   - type: web
     name: stuffy-graphql-gateway
     env: node
     buildCommand: npm install && npx turbo run build --filter=graphql-gateway
     startCommand: cd graphql-gateway && node dist/server.js
-    envVarGroups:
-      - stuffy-global-env
     envVars:
+      - fromGroup: stuffy-global-env
       - key: AUTH_SERVICE_URL
         value: https://stuffy-auth-service.onrender.com/graphql
       - key: PRODUCTS_SERVICE_URL
@@ -58,16 +57,16 @@ services:
     env: node
     buildCommand: npm install && npx turbo run build --filter=image-service
     startCommand: cd image-service && node dist/server.js
-    envVarGroups:
-      - stuffy-global-env
+    envVars:
+      - fromGroup: stuffy-global-env
 
   - type: web
     name: stuffy-recommendation-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=recommendation-service
     startCommand: cd recommendation-service && node dist/server.js
-    envVarGroups:
-      - stuffy-global-env
+    envVars:
+      - fromGroup: stuffy-global-env
 
 # 3. DANH SÁCH FRONTEND (STATIC SITES - MFE)
   - type: web
