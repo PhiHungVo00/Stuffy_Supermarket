@@ -1,52 +1,41 @@
 # Render Blueprint (Infrastructure as Code) cho Stuffy Supermarket
 # -----------------------------------------------------------
 # CÁCH SỬ DỤNG:
-# 1. File này đã được tạo sẵn ở thư mục gốc của dự án.
-# 2. Bạn chỉ cần gõ lệnh: git add render.yaml && git commit -m "add render blueprint" && git push
-# 3. Vào Render Dashboard -> Blueprints -> New Blueprint Instance -> Chọn Repo của bạn.
-# 4. Render sẽ tự động tạo Toàn Bộ 16 ứng dụng và Nhóm Biến Môi Trường!
+# 1. TRƯỚC TIÊN: Vào Render Dashboard -> Environment Groups -> Tạo một nhóm tên là `stuffy-global-env`.
+#    Thêm các biến: MONGO_URI, REDIS_URL, RABBITMQ_URL, JWT_SECRET.
+# 2. File này đã được tạo sẵn ở thư mục gốc của dự án.
+# 3. Bạn chỉ cần gõ lệnh: git add render.yaml && git commit -m "fix render blueprint" && git push
+# 4. Vào Render Dashboard -> Blueprints -> New Blueprint Instance -> Chọn Repo của bạn.
 # -----------------------------------------------------------
 
 version: "1"
 
-# 1. TẠO NHÓM BIẾN MÔI TRƯỜNG DÙNG CHUNG
-envGroups:
-  - name: stuffy-global-env
-    envVars:
-      - key: MONGO_URI
-        sync: false # Render sẽ hỏi bạn điền giá trị này lúc tạo Blueprint
-      - key: REDIS_URL
-        sync: false
-      - key: RABBITMQ_URL
-        sync: false
-      - key: JWT_SECRET
-        generateValue: true # Tự động tạo một chuỗi bí mật nếu bạn không điền
-
-# 2. DANH SÁCH BACKEND (WEB SERVICES)
+# 1. DANH SÁCH BACKEND (WEB SERVICES)
 services:
   - type: web
     name: stuffy-backend-api
     env: node
     buildCommand: npm install && npx turbo run build --filter=backend-api
     startCommand: cd backend-api && node dist/server.js
-    envVars:
-      - fromGroup: stuffy-global-env
+    envGroups:
+      - stuffy-global-env
 
   - type: web
     name: stuffy-auth-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=auth-service
     startCommand: cd auth-service && node dist/server.js
-    envVars:
-      - fromGroup: stuffy-global-env
+    envGroups:
+      - stuffy-global-env
 
   - type: web
     name: stuffy-graphql-gateway
     env: node
     buildCommand: npm install && npx turbo run build --filter=graphql-gateway
     startCommand: cd graphql-gateway && node dist/server.js
+    envGroups:
+      - stuffy-global-env
     envVars:
-      - fromGroup: stuffy-global-env
       - key: AUTH_SERVICE_URL
         value: https://stuffy-auth-service.onrender.com/graphql
       - key: PRODUCTS_SERVICE_URL
@@ -57,18 +46,18 @@ services:
     env: node
     buildCommand: npm install && npx turbo run build --filter=image-service
     startCommand: cd image-service && node dist/server.js
-    envVars:
-      - fromGroup: stuffy-global-env
+    envGroups:
+      - stuffy-global-env
 
   - type: web
     name: stuffy-recommendation-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=recommendation-service
     startCommand: cd recommendation-service && node dist/server.js
-    envVars:
-      - fromGroup: stuffy-global-env
+    envGroups:
+      - stuffy-global-env
 
-# 3. DANH SÁCH FRONTEND (STATIC SITES - MFE)
+# 2. DANH SÁCH FRONTEND (STATIC SITES - MFE)
   - type: web
     env: static
     name: stuffy-container
