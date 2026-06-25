@@ -133,9 +133,7 @@ app.use(seoPrerender);
 
 // Routes
 const isProduction = process.env.NODE_ENV === 'production';
-const authServiceTarget = process.env.AUTH_SERVICE_URL 
-  ? process.env.AUTH_SERVICE_URL.replace('/graphql', '') 
-  : (isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001');
+const authServiceTarget = isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001';
 
 app.use('/api/auth', createProxyMiddleware({ target: authServiceTarget, changeOrigin: true }));
 app.use('/api/cart', cartRoutes);
