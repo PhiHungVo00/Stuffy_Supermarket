@@ -545,11 +545,15 @@ mongoose.connect(mongoURI)
         if (!mfe) {
           await MfeModule.create({ name, activeUrl: url, versions: [{ version: "1.0.0", url, status: "stable", rollbackAvailable: true }] });
           console.log(`[Registry] 🌱 Seeded MFE: ${name}`);
-        } else if (mfe.activeUrl.includes('localhost')) {
-          // 🛡️ AUTO-MIGRATE: If production registry has localhost URLs, update them to Render
+        } else {
+          // 🛡️ AUTO-MIGRATE: Always update to latest default URL on every server start
+          // This ensures stale MongoDB data from previous deployments is always overridden
           mfe.activeUrl = url;
+          if (!mfe.versions.find((v: any) => v.url === url)) {
+            mfe.versions.push({ version: "latest", url, status: "stable", rollbackAvailable: true });
+          }
           await mfe.save();
-          console.log(`[Registry] 🔄 Migrated MFE to Cloud: ${name}`);
+          console.log(`[Registry] 🔄 Updated MFE URL: ${name} → ${url}`);
         }
       }
     } catch (err) { console.error("[Registry] ❌ Seeding failed:", err); }
