@@ -137,8 +137,14 @@ const server = new ApolloServer({
 });
 
 async function startServer() {
-  console.log(`[GraphQL Gateway] Waiting for subgraphs to be ready...`);
+  app.get('/', (req, res) => res.send('Gateway is starting...'));
   
+  const PORT = process.env.PORT || 4000;
+  httpServer.listen(PORT, () => {
+    console.log(`[GraphQL Gateway] Bound to port ${PORT}.`);
+  });
+
+  console.log(`[GraphQL Gateway] Waiting for subgraphs to be ready...`);
   const waitSubgraph = async (name: string, url: string) => {
     let ready = false;
     let attempts = 0;
@@ -215,10 +221,7 @@ async function startServer() {
 
   app.use('/graphql', expressMiddleware(server) as any);
   
-  const PORT = process.env.PORT || 4000;
-  httpServer.listen(PORT, () => {
-    console.log(`[GraphQL Gateway] Running at http://localhost:${PORT}/graphql`);
-  });
+  console.log(`[GraphQL Gateway] Subgraphs ready. GraphQL endpoint attached.`);
 };
 
 startServer().catch(err => {
