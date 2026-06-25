@@ -69,7 +69,7 @@ services:
       - fromGroup: stuffy-global-env
 
 # 3. DANH SÁCH FRONTEND (STATIC SITES - MFE)
-  - type: static
+  - type: static_site
     name: stuffy-container
     buildCommand: npm install && npx turbo run build --filter=container
     staticPublishPath: container/dist
@@ -77,7 +77,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-product-app
     buildCommand: npm install && npx turbo run build --filter=product-app
     staticPublishPath: product-app/dist
@@ -85,7 +85,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-cart-app
     buildCommand: npm install && npx turbo run build --filter=cart-app
     staticPublishPath: cart-app/dist
@@ -93,7 +93,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-header-app
     buildCommand: npm install && npx turbo run build --filter=header-app
     staticPublishPath: header-app/dist
@@ -101,7 +101,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-admin-app
     buildCommand: npm install && npx turbo run build --filter=admin-app
     staticPublishPath: admin-app/dist
@@ -109,7 +109,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-store-app
     buildCommand: npm install && npx turbo run build --filter=store-app
     staticPublishPath: store-app/dist
@@ -117,7 +117,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-profile-app
     buildCommand: npm install && npx turbo run build --filter=profile-app
     staticPublishPath: profile-app/dist
@@ -125,7 +125,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-marketing-app
     buildCommand: npm install && npx turbo run build --filter=marketing-app
     staticPublishPath: marketing-app/dist
@@ -133,7 +133,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-support-app
     buildCommand: npm install && npx turbo run build --filter=support-app
     staticPublishPath: support-app/dist
@@ -141,7 +141,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-design-system-app
     buildCommand: npm install && npx turbo run build --filter=@stuffy/design-system
     staticPublishPath: design-system-app/dist
@@ -149,7 +149,7 @@ services:
       - key: NODE_ENV
         value: production
 
-  - type: static
+  - type: static_site
     name: stuffy-3d-viewer-app
     buildCommand: npm install && npx turbo run build --filter=3d-viewer-app
     staticPublishPath: 3d-viewer-app/dist
