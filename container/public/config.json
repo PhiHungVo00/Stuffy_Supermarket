@@ -1,12 +1,13 @@
 {
-  "HEADER_URL": "https://stuffy-header-app.onrender.com",
-  "PRODUCT_URL": "https://stuffy-product-app.onrender.com",
-  "CART_URL": "https://stuffy-cart-app.onrender.com",
-  "ADMIN_URL": "https://stuffy-admin-app.onrender.com",
-  "STORE_URL": "https://stuffy-store-app.onrender.com",
-  "DESIGN_SYSTEM_URL": "https://stuffy-design-system-app.onrender.com",
-  "VIEWER_URL": "https://stuffy-3d-viewer-app.onrender.com",
-  "PROFILE_URL": "https://stuffy-profile-app.onrender.com",
-  "MARKETING_URL": "https://stuffy-marketing-app.onrender.com",
-  "SUPPORT_URL": "https://stuffy-support-app.onrender.com"
+  "BACKEND_API_URL": "https://stuffy-backend-api-xmln.onrender.com",
+  "HEADER_URL": "https://stuffy-header-app-xmln.onrender.com",
+  "PRODUCT_URL": "https://stuffy-product-app-xmln.onrender.com",
+  "CART_URL": "https://stuffy-cart-app-xmln.onrender.com",
+  "ADMIN_URL": "https://stuffy-admin-app-xmln.onrender.com",
+  "STORE_URL": "https://stuffy-store-app-xmln.onrender.com",
+  "DESIGN_SYSTEM_URL": "https://stuffy-design-system-app-xmln.onrender.com",
+  "VIEWER_URL": "https://stuffy-3d-viewer-app-xmln.onrender.com",
+  "PROFILE_URL": "https://stuffy-profile-app-xmln.onrender.com",
+  "MARKETING_URL": "https://stuffy-marketing-app-xmln.onrender.com",
+  "SUPPORT_URL": "https://stuffy-support-app-xmln.onrender.com"
 }

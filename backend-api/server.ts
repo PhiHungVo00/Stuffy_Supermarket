@@ -526,16 +526,16 @@ mongoose.connect(mongoURI)
     
     // --- GOVERNANCE REGISTRY SEEDER ---
     const MFE_DEFAULTS = {
-      header: "https://stuffy-header-app.onrender.com/remoteEntry.js",
-      product: "https://stuffy-product-app.onrender.com/remoteEntry.js",
-      cart: "https://stuffy-cart-app.onrender.com/remoteEntry.js",
-      admin: "https://stuffy-admin-app.onrender.com/remoteEntry.js",
-      store: "https://stuffy-store-app.onrender.com/remoteEntry.js",
-      profile: "https://stuffy-profile-app.onrender.com/remoteEntry.js",
-      marketing: "https://stuffy-marketing-app.onrender.com/remoteEntry.js",
-      support: "https://stuffy-support-app.onrender.com/remoteEntry.js",
-      design_system: "https://stuffy-design-system-app.onrender.com/remoteEntry.js",
-      viewer: "https://stuffy-3d-viewer-app.onrender.com/remoteEntry.js",
+      header: "https://stuffy-header-app-xmln.onrender.com/remoteEntry.js",
+      product: "https://stuffy-product-app-xmln.onrender.com/remoteEntry.js",
+      cart: "https://stuffy-cart-app-xmln.onrender.com/remoteEntry.js",
+      admin: "https://stuffy-admin-app-xmln.onrender.com/remoteEntry.js",
+      store: "https://stuffy-store-app-xmln.onrender.com/remoteEntry.js",
+      profile: "https://stuffy-profile-app-xmln.onrender.com/remoteEntry.js",
+      marketing: "https://stuffy-marketing-app-xmln.onrender.com/remoteEntry.js",
+      support: "https://stuffy-support-app-xmln.onrender.com/remoteEntry.js",
+      design_system: "https://stuffy-design-system-app-xmln.onrender.com/remoteEntry.js",
+      viewer: "https://stuffy-3d-viewer-app-xmln.onrender.com/remoteEntry.js",
     };
 
     try {

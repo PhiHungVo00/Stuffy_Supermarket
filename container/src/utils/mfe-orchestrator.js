@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MFE ORCHESTRATOR & DYNAMIC REGISTRY LOADER
  * Objective: Load remotes at Runtime based on the Governance Manifest.
  */
@@ -20,17 +20,42 @@ const LOCAL_REGISTRY = {
     viewer: "http://localhost:3007/remoteEntry.js"
 };
 
+// Fallback static registry (used only if both config.json and backend manifest fail)
 const PRODUCTION_REGISTRY = {
-    store: "https://stuffy-store-app.onrender.com/remoteEntry.js",
-    header: "https://stuffy-header-app.onrender.com/remoteEntry.js",
-    product: "https://stuffy-product-app.onrender.com/remoteEntry.js",
-    cart: "https://stuffy-cart-app.onrender.com/remoteEntry.js",
-    admin: "https://stuffy-admin-app.onrender.com/remoteEntry.js",
-    profile: "https://stuffy-profile-app.onrender.com/remoteEntry.js",
-    marketing: "https://stuffy-marketing-app.onrender.com/remoteEntry.js",
-    support: "https://stuffy-support-app.onrender.com/remoteEntry.js",
-    design_system: "https://stuffy-design-system-app.onrender.com/remoteEntry.js",
-    viewer: "https://stuffy-3d-viewer-app.onrender.com/remoteEntry.js"
+    store: "https://stuffy-store-app-xmln.onrender.com/remoteEntry.js",
+    header: "https://stuffy-header-app-xmln.onrender.com/remoteEntry.js",
+    product: "https://stuffy-product-app-xmln.onrender.com/remoteEntry.js",
+    cart: "https://stuffy-cart-app-xmln.onrender.com/remoteEntry.js",
+    admin: "https://stuffy-admin-app-xmln.onrender.com/remoteEntry.js",
+    profile: "https://stuffy-profile-app-xmln.onrender.com/remoteEntry.js",
+    marketing: "https://stuffy-marketing-app-xmln.onrender.com/remoteEntry.js",
+    support: "https://stuffy-support-app-xmln.onrender.com/remoteEntry.js",
+    design_system: "https://stuffy-design-system-app-xmln.onrender.com/remoteEntry.js",
+    viewer: "https://stuffy-3d-viewer-app-xmln.onrender.com/remoteEntry.js"
+};
+
+// Load runtime config from /config.json (served as static file — editable without rebuild)
+const loadRuntimeConfig = async () => {
+    try {
+        const res = await fetch('/config.json');
+        const cfg = await res.json();
+        return {
+            store: cfg.STORE_URL ? `${cfg.STORE_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.store,
+            header: cfg.HEADER_URL ? `${cfg.HEADER_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.header,
+            product: cfg.PRODUCT_URL ? `${cfg.PRODUCT_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.product,
+            cart: cfg.CART_URL ? `${cfg.CART_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.cart,
+            admin: cfg.ADMIN_URL ? `${cfg.ADMIN_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.admin,
+            profile: cfg.PROFILE_URL ? `${cfg.PROFILE_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.profile,
+            marketing: cfg.MARKETING_URL ? `${cfg.MARKETING_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.marketing,
+            support: cfg.SUPPORT_URL ? `${cfg.SUPPORT_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.support,
+            design_system: cfg.DESIGN_SYSTEM_URL ? `${cfg.DESIGN_SYSTEM_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.design_system,
+            viewer: cfg.VIEWER_URL ? `${cfg.VIEWER_URL}/remoteEntry.js` : PRODUCTION_REGISTRY.viewer,
+            _backendUrl: cfg.BACKEND_API_URL || "https://stuffy-backend-api-xmln.onrender.com",
+        };
+    } catch (e) {
+        console.warn('[Orchestrator] Could not load /config.json, using hardcoded registry.');
+        return { ...PRODUCTION_REGISTRY, _backendUrl: "https://stuffy-backend-api-xmln.onrender.com" };
+    }
 };
 
 export const loadMfeManifest = async () => {
@@ -40,13 +65,16 @@ export const loadMfeManifest = async () => {
         return LOCAL_REGISTRY;
     }
 
+    const runtimeConfig = await loadRuntimeConfig();
+    const { _backendUrl, ...runtimeRegistry } = runtimeConfig;
+
     try {
-        const res = await fetch("https://stuffy-backend-api.onrender.com/api/registry/manifest");
+        const res = await fetch(`${_backendUrl}/api/registry/manifest`);
         const manifest = await res.json();
-        return { ...PRODUCTION_REGISTRY, ...manifest };
+        return { ...runtimeRegistry, ...manifest };
     } catch (err) {
         console.error("[Orchestrator] Failed to fetch MFE Manifest, using fallback registry.", err);
-        return PRODUCTION_REGISTRY;
+        return runtimeRegistry;
     }
 };
 

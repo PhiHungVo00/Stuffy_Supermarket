@@ -29,12 +29,12 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER
 const productsEnv = process.env.PRODUCTS_SERVICE_URL;
 const PRODUCTS_URL = productsEnv 
   ? (productsEnv.endsWith('/graphql') ? productsEnv : `${productsEnv}/graphql`)
-  : (isProduction ? 'https://stuffy-backend-api.onrender.com/graphql' : 'http://localhost:5000/graphql');
+  : (isProduction ? 'https://stuffy-backend-api-xmln.onrender.com/graphql' : 'http://localhost:5000/graphql');
 
 const authEnv = process.env.AUTH_SERVICE_URL;
 const AUTH_URL = authEnv 
   ? (authEnv.endsWith('/graphql') ? authEnv : `${authEnv}/graphql`)
-  : (isProduction ? 'https://stuffy-auth-service.onrender.com/graphql' : 'http://localhost:5001/graphql');
+  : (isProduction ? 'https://stuffy-auth-service-xmln.onrender.com/graphql' : 'http://localhost:5001/graphql');
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
