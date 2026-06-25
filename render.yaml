@@ -1,0 +1,158 @@
+# Render Blueprint (Infrastructure as Code) cho Stuffy Supermarket
+# -----------------------------------------------------------
+# CÁCH SỬ DỤNG:
+# 1. File này đã được tạo sẵn ở thư mục gốc của dự án.
+# 2. Bạn chỉ cần gõ lệnh: git add render.yaml && git commit -m "add render blueprint" && git push
+# 3. Vào Render Dashboard -> Blueprints -> New Blueprint Instance -> Chọn Repo của bạn.
+# 4. Render sẽ tự động tạo Toàn Bộ 16 ứng dụng và Nhóm Biến Môi Trường!
+# -----------------------------------------------------------
+
+version: "1"
+
+# 1. TẠO NHÓM BIẾN MÔI TRƯỜNG DÙNG CHUNG
+envGroups:
+  - name: stuffy-global-env
+    envVars:
+      - key: MONGO_URI
+        sync: false # Render sẽ hỏi bạn điền giá trị này lúc tạo Blueprint
+      - key: REDIS_URL
+        sync: false
+      - key: RABBITMQ_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true # Tự động tạo một chuỗi bí mật nếu bạn không điền
+
+# 2. DANH SÁCH BACKEND (WEB SERVICES)
+services:
+  - type: web
+    name: stuffy-backend-api
+    env: node
+    buildCommand: npm install && npx turbo run build --filter=backend-api
+    startCommand: cd backend-api && node dist/server.js
+    envVars:
+      - fromGroup: stuffy-global-env
+
+  - type: web
+    name: stuffy-auth-service
+    env: node
+    buildCommand: npm install && npx turbo run build --filter=auth-service
+    startCommand: cd auth-service && node dist/server.js
+    envVars:
+      - fromGroup: stuffy-global-env
+
+  - type: web
+    name: stuffy-graphql-gateway
+    env: node
+    buildCommand: npm install && npx turbo run build --filter=graphql-gateway
+    startCommand: cd graphql-gateway && node dist/server.js
+    envVars:
+      - fromGroup: stuffy-global-env
+      - key: AUTH_SERVICE_URL
+        value: https://stuffy-auth-service.onrender.com/graphql
+      - key: PRODUCTS_SERVICE_URL
+        value: https://stuffy-backend-api.onrender.com/graphql
+
+  - type: web
+    name: stuffy-image-service
+    env: node
+    buildCommand: npm install && npx turbo run build --filter=image-service
+    startCommand: cd image-service && node dist/server.js
+    envVars:
+      - fromGroup: stuffy-global-env
+
+  - type: web
+    name: stuffy-recommendation-service
+    env: node
+    buildCommand: npm install && npx turbo run build --filter=recommendation-service
+    startCommand: cd recommendation-service && node dist/server.js
+    envVars:
+      - fromGroup: stuffy-global-env
+
+# 3. DANH SÁCH FRONTEND (STATIC SITES - MFE)
+  - type: static
+    name: stuffy-container
+    buildCommand: npm install && npx turbo run build --filter=container
+    staticPublishPath: container/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-product-app
+    buildCommand: npm install && npx turbo run build --filter=product-app
+    staticPublishPath: product-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-cart-app
+    buildCommand: npm install && npx turbo run build --filter=cart-app
+    staticPublishPath: cart-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-header-app
+    buildCommand: npm install && npx turbo run build --filter=header-app
+    staticPublishPath: header-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-admin-app
+    buildCommand: npm install && npx turbo run build --filter=admin-app
+    staticPublishPath: admin-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-store-app
+    buildCommand: npm install && npx turbo run build --filter=store-app
+    staticPublishPath: store-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-profile-app
+    buildCommand: npm install && npx turbo run build --filter=profile-app
+    staticPublishPath: profile-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-marketing-app
+    buildCommand: npm install && npx turbo run build --filter=marketing-app
+    staticPublishPath: marketing-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-support-app
+    buildCommand: npm install && npx turbo run build --filter=support-app
+    staticPublishPath: support-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-design-system-app
+    buildCommand: npm install && npx turbo run build --filter=@stuffy/design-system
+    staticPublishPath: design-system-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: stuffy-3d-viewer-app
+    buildCommand: npm install && npx turbo run build --filter=3d-viewer-app
+    staticPublishPath: 3d-viewer-app/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
