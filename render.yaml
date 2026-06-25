@@ -25,6 +25,7 @@ envVarGroups:
 # 2. DANH SÁCH BACKEND (WEB SERVICES)
 services:
   - type: web
+    plan: free
     name: stuffy-backend-api
     env: node
     buildCommand: npm install && npx turbo run build --filter=backend-api
@@ -33,6 +34,7 @@ services:
       - fromGroup: stuffy-global-env
 
   - type: web
+    plan: free
     name: stuffy-auth-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=auth-service
@@ -41,6 +43,7 @@ services:
       - fromGroup: stuffy-global-env
 
   - type: web
+    plan: free
     name: stuffy-graphql-gateway
     env: node
     buildCommand: npm install && npx turbo run build --filter=graphql-gateway
@@ -53,6 +56,7 @@ services:
         value: https://stuffy-backend-api.onrender.com/graphql
 
   - type: web
+    plan: free
     name: stuffy-image-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=image-service
@@ -61,6 +65,7 @@ services:
       - fromGroup: stuffy-global-env
 
   - type: web
+    plan: free
     name: stuffy-recommendation-service
     env: node
     buildCommand: npm install && npx turbo run build --filter=recommendation-service
@@ -70,6 +75,7 @@ services:
 
 # 3. DANH SÁCH FRONTEND (STATIC SITES - MFE)
   - type: web
+    plan: free
     env: static
     name: stuffy-container
     buildCommand: npm install && npx turbo run build --filter=container
@@ -79,6 +85,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-product-app
     buildCommand: npm install && npx turbo run build --filter=product-app
@@ -88,6 +95,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-cart-app
     buildCommand: npm install && npx turbo run build --filter=cart-app
@@ -97,6 +105,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-header-app
     buildCommand: npm install && npx turbo run build --filter=header-app
@@ -106,6 +115,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-admin-app
     buildCommand: npm install && npx turbo run build --filter=admin-app
@@ -115,6 +125,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-store-app
     buildCommand: npm install && npx turbo run build --filter=store-app
@@ -124,6 +135,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-profile-app
     buildCommand: npm install && npx turbo run build --filter=profile-app
@@ -133,6 +145,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-marketing-app
     buildCommand: npm install && npx turbo run build --filter=marketing-app
@@ -142,6 +155,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-support-app
     buildCommand: npm install && npx turbo run build --filter=support-app
@@ -151,6 +165,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-design-system-app
     buildCommand: npm install && npx turbo run build --filter=@stuffy/design-system
@@ -160,6 +175,7 @@ services:
         value: production
 
   - type: web
+    plan: free
     env: static
     name: stuffy-3d-viewer-app
     buildCommand: npm install && npx turbo run build --filter=3d-viewer-app
