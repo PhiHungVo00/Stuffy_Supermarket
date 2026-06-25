@@ -163,7 +163,32 @@ const vipProducts = [
 app.get('/api/seed', async (req, res) => {
   try {
     await Product.deleteMany({});
-    await Product.insertMany(vipProducts);
+    
+    let admin = await User.findOne({ email: 'admin@stuffy.com' });
+    if (!admin) {
+      admin = await User.create({
+        name: 'Stuffy Admin',
+        email: 'admin@stuffy.com',
+        password: 'password123',
+        role: 'admin',
+        isEmailVerified: true
+      });
+    }
+
+    let shop = await Shop.findOne({ owner: admin._id });
+    if (!shop) {
+      shop = await Shop.create({
+        name: 'Stuffy Official Store',
+        description: 'The official Stuffy Supermarket store',
+        owner: admin._id,
+        isApproved: true,
+        logo: 'https://via.placeholder.com/150/000000/FFFFFF/?text=Stuffy'
+      });
+    }
+
+    const productsWithShop = vipProducts.map(p => ({ ...p, shop: shop._id }));
+    await Product.insertMany(productsWithShop);
+    
     await clearCache('products:*');
     res.json({ message: 'Seeded successfully' });
   } catch (error: any) {
