@@ -8,10 +8,20 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import MobileScanner from "./pages/MobileScanner";
 import Login from "./pages/Login";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { prefetchRemote, REMOTE_MAP } from "./utils/prefetch";
 // @ts-ignore
 import { useI18nStore } from "store/i18n";
+
+const NavigationListener = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const handleNav = (e) => navigate(e.detail.path);
+    window.addEventListener('STUFFY_NAV', handleNav);
+    return () => window.removeEventListener('STUFFY_NAV', handleNav);
+  }, [navigate]);
+  return null;
+};
 
 const Header = React.lazy(() => import("header/Header"));
 // ... existing lazy imports ...
@@ -140,6 +150,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <NavigationListener />
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <ProtectedModule moduleName="Header"><Header /></ProtectedModule>
         <Navbar />

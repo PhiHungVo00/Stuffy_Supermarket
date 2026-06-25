@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
-import { useNavigate } from "react-router-dom";
+// react-router-dom import removed to bypass MFE context errors
 import { useCartStore, useWishlistStore } from "store/store";
 import { productApi } from "store/api";
 import Button from "design_system/Button";
@@ -16,7 +16,7 @@ const Viewer3D = React.lazy(() => import("viewer/Viewer"));
 
 export default function ProductList() {
   const { t } = useI18nStore();
-  const navigate = useNavigate();
+  const navigate = (path) => window.dispatchEvent(new CustomEvent('STUFFY_NAV', { detail: { path } }));
   const addToCart = useCartStore((state) => state.addToCart);
   const { wishlist, toggleWishlist } = useWishlistStore();
   
