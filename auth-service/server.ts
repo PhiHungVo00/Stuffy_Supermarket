@@ -1,3 +1,5 @@
+console.log('[Auth Service] Booting up...');
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -15,11 +17,12 @@ const apolloServer = new ApolloServer({
 });
 
 async function startServer() {
+  console.log('[Auth Service] startServer() called.');
   // ⚡ Bind port FIRST so Render doesn't timeout waiting for an open port
-  const PORT = process.env.PORT || 5001;
+  const PORT = parseInt(process.env.PORT as string, 10) || 5001;
   app.get('/health', (_, res) => res.json({ status: 'ok' }));
-  const httpServer = app.listen(PORT, () => {
-    console.log(`[Auth Service] Port ${PORT} bound. Connecting to MongoDB...`);
+  const httpServer = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Auth Service] Port ${PORT} bound on 0.0.0.0. Connecting to MongoDB...`);
   });
 
   await apolloServer.start();
