@@ -15,8 +15,22 @@ const apolloServer = new ApolloServer({
 });
 
 async function startServer() {
+  // ⚡ Bind port FIRST so Render doesn't timeout waiting for an open port
+  const PORT = process.env.PORT || 5001;
+  app.get('/health', (_, res) => res.json({ status: 'ok' }));
+  const httpServer = app.listen(PORT, () => {
+    console.log(`[Auth Service] Port ${PORT} bound. Connecting to MongoDB...`);
+  });
+
   await apolloServer.start();
-  app.use(cors({ origin: true, credentials: true }));
+
+  app.use(cors({ origin: (origin, cb) => {
+    if (!origin || origin.endsWith('.onrender.com') || origin.includes('localhost')) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  }, credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
 
@@ -30,12 +44,7 @@ async function startServer() {
 
   const mongoURI = process.env.MONGO_URI || 'mongodb://mongodb:27017/stuffy_db';
   await mongoose.connect(mongoURI);
-  console.log('[Auth Service] MongoDB connected.');
-
-  const PORT = process.env.PORT || 5001;
-  app.listen(PORT, () => {
-    console.log(`[Auth Service] Running at http://localhost:${PORT}`);
-  });
+  console.log('[Auth Service] MongoDB connected. Service fully ready.');
 }
 
 startServer().catch(err => console.error('[Auth Service] Start Error:', err));
