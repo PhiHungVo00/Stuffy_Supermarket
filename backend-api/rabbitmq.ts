@@ -32,9 +32,9 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
         };
         
         // Define Queues with DLX protection
-        await channel.assertQueue('INVENTORY_SYNC', queueOptions);
-        await channel.assertQueue('EMAIL_NOTIFICATIONS', queueOptions);
-        await channel.assertQueue('user_behavior_tracking', queueOptions);
+        await channel.assertQueue('INVENTORY_SYNC_V2', queueOptions);
+        await channel.assertQueue('EMAIL_NOTIFICATIONS_V2', queueOptions);
+        await channel.assertQueue('user_behavior_tracking_v2', queueOptions);
         
         console.log(`[RabbitMQ] Connected and queues initialized.`);
 
@@ -86,6 +86,9 @@ export const connectRabbitMQ = async (retryCount = 0): Promise<void> => {
 
 export const pubsub = {
     publish: (queue: string, message: any) => {
+        if (queue === 'INVENTORY_SYNC') queue = 'INVENTORY_SYNC_V2';
+        if (queue === 'EMAIL_NOTIFICATIONS') queue = 'EMAIL_NOTIFICATIONS_V2';
+        if (queue === 'user_behavior_tracking') queue = 'user_behavior_tracking_v2';
         if (isFallbackMode) {
             console.log(`[RabbitMQ Fallback] Publishing message to ${queue}`);
             setTimeout(() => {
@@ -102,6 +105,9 @@ export const pubsub = {
     },
     
     subscribe: (queue: string, callback: (msg: any) => void) => {
+        if (queue === 'INVENTORY_SYNC') queue = 'INVENTORY_SYNC_V2';
+        if (queue === 'EMAIL_NOTIFICATIONS') queue = 'EMAIL_NOTIFICATIONS_V2';
+        if (queue === 'user_behavior_tracking') queue = 'user_behavior_tracking_v2';
         pendingSubscriptions.push({ queue, callback });
         if (isFallbackMode) {
             fallbackEmitter.on(queue, (content) => {

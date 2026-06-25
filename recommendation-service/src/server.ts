@@ -146,7 +146,7 @@ console.warn("[Amqp] [Warn] Missing RABBIT_URL. Consumer not started.");
         }
         const conn = await amqp.connect(RABBIT_URL);
         const channel = await conn.createChannel();
-        const queue = 'user_behavior_tracking';
+        const queue = 'user_behavior_tracking_v2';
         
         await channel.assertQueue(queue, { durable: true });
 console.log(`[Recom] [Rabbit] Listening for behaviors on: ${queue}`);
