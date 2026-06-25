@@ -24,13 +24,7 @@ async function startServer() {
 
   await apolloServer.start();
 
-  app.use(cors({ origin: (origin, cb) => {
-    if (!origin || origin.endsWith('.onrender.com') || origin.includes('localhost')) {
-      cb(null, true);
-    } else {
-      cb(null, false);
-    }
-  }, credentials: true }));
+  app.use(cors({ origin: true, credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
 
