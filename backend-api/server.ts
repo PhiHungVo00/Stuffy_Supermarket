@@ -132,7 +132,7 @@ app.use(cookieParser());
 app.use(seoPrerender);
 
 // Routes
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
 const authServiceTarget = isProduction ? 'https://stuffy-auth-service-xmln.onrender.com' : 'http://localhost:5001';
 
 app.use('/api/auth', createProxyMiddleware({ target: authServiceTarget, changeOrigin: true }));
