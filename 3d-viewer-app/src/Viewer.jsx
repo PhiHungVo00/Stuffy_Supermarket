@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, Float, PresentationControls, useTexture } from "@react-three/drei";
 import { ARButton, XR, Controllers, Hands } from "@react-three/xr";
@@ -47,6 +47,26 @@ function ProductDisplay({ color, image }) {
 }
 
 export default function Viewer({ color, image, name, onClose }) {
+  const [arSupported, setArSupported] = useState(false);
+  const [checkingAr, setCheckingAr] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-ar')
+        .then((supported) => {
+          setArSupported(supported);
+          setCheckingAr(false);
+        })
+        .catch(() => {
+          setArSupported(false);
+          setCheckingAr(false);
+        });
+    } else {
+      setArSupported(false);
+      setCheckingAr(false);
+    }
+  }, []);
+
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -65,18 +85,39 @@ export default function Viewer({ color, image, name, onClose }) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <ARButton 
-            className="ar-launch-button"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-              color: 'white', border: 'none', padding: '10px 24px',
-              borderRadius: '99px', cursor: 'pointer', fontWeight: '800',
-              fontSize: '0.9rem', boxShadow: '0 4px 15px rgba(99,102,241,0.3)',
-              textTransform: 'uppercase', letterSpacing: '0.5px'
-            }}
-          >
-            ✦ Start AR View
-          </ARButton>
+          {!checkingAr && arSupported ? (
+            <ARButton 
+              className="ar-launch-button"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                color: 'white', border: 'none', padding: '10px 24px',
+                borderRadius: '99px', cursor: 'pointer', fontWeight: '800',
+                fontSize: '0.9rem', boxShadow: '0 4px 15px rgba(99,102,241,0.3)',
+                textTransform: 'uppercase', letterSpacing: '0.5px'
+              }}
+            >
+              ✦ Start AR View
+            </ARButton>
+          ) : (
+            <button
+              onClick={() => alert("Chế độ AR (Augmented Reality) yêu cầu thiết bị di động hỗ trợ AR (như iOS Safari với WebXR / Android Chrome). Thiết bị hiện tại của bạn không hỗ trợ AR. Bạn vẫn có thể xoay, phóng to mô hình 3D trên màn hình này!")}
+              style={{
+                background: 'rgba(255,255,255,0.07)',
+                color: 'rgba(255,255,255,0.85)', 
+                border: '1px dashed rgba(255,255,255,0.25)', 
+                padding: '10px 24px',
+                borderRadius: '99px', 
+                cursor: 'pointer', 
+                fontWeight: '600',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              ⚠️ AR mode unsupported
+            </button>
+          )}
           <button
             onClick={onClose}
             style={{

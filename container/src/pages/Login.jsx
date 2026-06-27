@@ -25,7 +25,13 @@ export default function Login() {
       : await register(name, email, password, role);
 
     if (res.success) {
-      navigate('/');
+      const userInfo = localStorage.getItem('userInfo');
+      const user = userInfo ? JSON.parse(userInfo) : null;
+      if (user && user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(res.error || t('auth_failed'));
     }

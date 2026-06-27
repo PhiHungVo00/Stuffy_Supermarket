@@ -13,6 +13,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+// @ts-ignore
+import { useI18nStore } from 'store/i18n';
 
 ChartJS.register(
   CategoryScale,
@@ -31,6 +33,7 @@ const isProduction = typeof window !== 'undefined' && window.location.hostname.i
 const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 export default function Dashboard({ products }) {
+  const { t } = useI18nStore();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('admin');
@@ -117,7 +120,7 @@ export default function Dashboard({ products }) {
       labels: combinedLabels,
       datasets: [
         {
-          label: 'Historical Revenue ($)',
+          label: t('admin_historical_revenue'),
           data: historyPoints,
           borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
           backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
@@ -125,7 +128,7 @@ export default function Dashboard({ products }) {
           tension: 0.4,
         },
         {
-          label: 'AI Forecasted Revenue ($)',
+          label: t('admin_ai_revenue'),
           data: forecastPoints,
           borderColor: 'rgb(245, 158, 11)',
           borderDash: [5, 5],
@@ -146,7 +149,7 @@ export default function Dashboard({ products }) {
     salesData = {
       labels,
       datasets: [{
-        label: 'Revenue ($)',
+        label: t('admin_revenue'),
         data: totalRevenue > 0 ? realRevenue : mockRevenue,
         borderColor: userRole === 'seller' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)',
         backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
@@ -174,9 +177,9 @@ export default function Dashboard({ products }) {
 
   // Mocking funnel sessions
   const behaviourData = {
-    labels: ['Home View', 'Search', 'Add to Cart', 'AR Experience', 'Checkout'],
+    labels: [t('admin_funnel_home'), t('admin_funnel_search'), t('admin_funnel_cart'), t('admin_funnel_ar'), t('admin_funnel_checkout')],
     datasets: [{
-      label: 'User Sessions',
+      label: t('admin_user_sessions'),
       data: userRole === 'seller' ? [1200, 800, 350, 210, 110] : [4200, 3100, 1200, 800, 400],
       backgroundColor: userRole === 'seller' ? 'rgba(16, 185, 129, 0.7)' : 'rgba(168, 85, 247, 0.7)',
       borderRadius: 12
@@ -205,7 +208,7 @@ export default function Dashboard({ products }) {
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
           <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {userRole === 'seller' ? 'Shop AI Revenue Forecast & Trend' : 'Platform Revenue Trend'}
+            {userRole === 'seller' ? t('admin_chart_forecast_seller') : t('admin_chart_forecast_admin')}
           </h4>
           <div style={{ height: '220px' }}>
             <Line data={salesData} options={chartOptions} />
@@ -218,7 +221,7 @@ export default function Dashboard({ products }) {
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
           <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {userRole === 'seller' ? 'Shop Visitor Funnel' : 'Platform User Funnel'}
+            {userRole === 'seller' ? t('admin_chart_funnel_seller') : t('admin_chart_funnel_admin')}
           </h4>
           <div style={{ height: '220px' }}>
             <Bar data={behaviourData} options={chartOptions} />
@@ -231,7 +234,7 @@ export default function Dashboard({ products }) {
           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
         }}>
           <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {userRole === 'seller' ? 'Shop Inventory Split' : 'Platform Inventory Split'}
+            {userRole === 'seller' ? t('admin_chart_split_seller') : t('admin_chart_split_admin')}
           </h4>
           <div style={{ height: '220px', display: 'flex', justifyContent: 'center' }}>
             <Doughnut data={categoryData} options={{ ...chartOptions, maintainAspectRatio: false, plugins: { legend: { display: false } } }} />

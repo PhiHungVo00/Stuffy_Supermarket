@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { cartApi } from "./api";
 import { Product, CartItem } from "@stuffy/types";
+import { updateCartCount } from "./GlobalSignals";
 
 interface CartState {
   cartItems: CartItem[];
@@ -20,22 +21,31 @@ const syncToServer = async (cartItems: CartItem[]) => {
   }
 };
 
+/** Sync the cross-MFE cartCount signal with the current total item count */
+const syncCartSignal = (items: CartItem[]) => {
+  const total = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  updateCartCount(total);
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   cartItems: [],
   
   loadCartFromServer: async () => {
     try {
       const data = await cartApi.getCart();
-      set({ cartItems: (Array.isArray(data) ? data : (data.cartItems || [])) as CartItem[] });
+      const newItems = (Array.isArray(data) ? data : (data.cartItems || [])) as CartItem[];
+      set({ cartItems: newItems });
+      syncCartSignal(newItems);
     } catch (e) {
       console.error("Failed to load cart", e);
     }
   },
 
   addToCart: (product: Product, selectedVariant?: any) => set((state) => {
+    const productId = product.id || (product as any)._id;
     const cartItemId = selectedVariant 
-      ? `${product.id}_${selectedVariant.sku}` 
-      : product.id;
+      ? `${productId}_${selectedVariant.sku}` 
+      : productId;
 
     const itemPrice = selectedVariant ? selectedVariant.price : product.price;
     const itemImage = (selectedVariant && selectedVariant.image) ? selectedVariant.image : product.image;
@@ -52,6 +62,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const newCartItem = {
         ...product,
         id: cartItemId,
+        _id: productId,
         cartItemId,
         price: itemPrice,
         image: itemImage,
@@ -61,29 +72,34 @@ export const useCartStore = create<CartState>((set, get) => ({
       newItems = [...state.cartItems, newCartItem];
     }
     syncToServer(newItems);
+    syncCartSignal(newItems);
     return { cartItems: newItems };
   }),
 
   removeFromCart: (id: string) => set((state) => {
     const newItems = state.cartItems.filter(i => i.id !== id);
     syncToServer(newItems);
+    syncCartSignal(newItems);
     return { cartItems: newItems };
   }),
 
   increaseQuantity: (id: string) => set((state) => {
     const newItems = state.cartItems.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i) as CartItem[];
     syncToServer(newItems);
+    syncCartSignal(newItems);
     return { cartItems: newItems };
   }),
 
   decreaseQuantity: (id: string) => set((state) => {
     const newItems = state.cartItems.map(i => i.id === id && i.quantity > 1 ? { ...i, quantity: i.quantity - 1 } : i) as CartItem[];
     syncToServer(newItems);
+    syncCartSignal(newItems);
     return { cartItems: newItems };
   }),
 
   clearCart: () => set((state) => {
     syncToServer([]);
+    syncCartSignal([]);
     return { cartItems: [] };
   })
 }));
@@ -98,10 +114,11 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   wishlist: JSON.parse(localStorage.getItem('stuffy_wishlist') || '[]'),
   
   toggleWishlist: (product: Product) => set((state) => {
-    const exists = state.wishlist.find(i => i.id === product.id);
+    const productId = product.id || (product as any)._id;
+    const exists = state.wishlist.find(i => (i.id || (i as any)._id) === productId);
     let newList;
     if (exists) {
-      newList = state.wishlist.filter(i => i.id !== product.id);
+      newList = state.wishlist.filter(i => (i.id || (i as any)._id) !== productId);
     } else {
       newList = [...state.wishlist, product];
     }
@@ -110,6 +127,6 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   }),
 
   isInWishlist: (id: string) => {
-    return !!get().wishlist.find(i => i.id === id);
+    return !!get().wishlist.find(i => (i.id || (i as any)._id) === id);
   }
 }));

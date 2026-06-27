@@ -1,16 +1,59 @@
 import React from 'react';
 import AISearchBar from './AISearchBar';
 import NotificationBell from './NotificationBell';
-import SimpleSearchBar from './SimpleSearchBar';
 import LanguageSwitcher from './LanguageSwitcher';
 // @ts-ignore
-import { cartCount } from 'store/signals';
+import { cartCount, isDarkMode, toggleTheme } from 'store/signals';
 // @ts-ignore
 import { useI18nStore } from 'store/i18n';
 
 export default function Header() {
   const { t } = useI18nStore();
   const [showDropdown, setShowDropdown] = React.useState(false);
+  const [darkMode, setDarkMode] = React.useState(isDarkMode.value);
+  const [cartNum, setCartNum] = React.useState(cartCount.value);
+
+  const [currentPath, setCurrentPath] = React.useState(typeof window !== 'undefined' ? window.location.pathname : '/');
+
+  React.useEffect(() => {
+    // Initial sync
+    const savedTheme = localStorage.getItem('STUFFY_THEME') || 'default';
+    const isDark = savedTheme === 'midnight';
+    isDarkMode.value = isDark;
+    setDarkMode(isDark);
+    setCartNum(cartCount.value);
+
+    // Subscribe to signal changes
+    const unsubDarkMode = isDarkMode.subscribe((val) => {
+      setDarkMode(val);
+    });
+    const unsubCartCount = cartCount.subscribe((val) => {
+      setCartNum(val);
+    });
+
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      unsubDarkMode();
+      unsubCartCount();
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleThemeToggle = () => {
+    const newMode = !isDarkMode.value;
+    toggleTheme();
+    try {
+      // @ts-ignore
+      const { applyTheme } = require('design_system/ThemeConfig');
+      applyTheme(newMode ? 'midnight' : 'default');
+    } catch (e) {
+      console.warn("ThemeConfig service unavailable.");
+    }
+  };
 
   // Read user from localStorage
   const savedUser = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
@@ -39,7 +82,7 @@ export default function Header() {
 
   return (
     <header style={{
-      background: 'rgba(255, 255, 255, 0.85)',
+      background: darkMode ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.85)',
       backdropFilter: 'blur(16px)',
       borderBottom: '1px solid var(--border-light)',
       position: 'sticky',
@@ -63,13 +106,14 @@ export default function Header() {
             Stuffy<span style={{ color: 'var(--secondary-color)' }}>Market</span>
           </h1>
         </div>
-
-        {/* 🔍 Thanh Tìm Kiếm Standard (Real-time) */}
-        <SimpleSearchBar />
       </div>
 
-      {/* 🤖 Thanh Tìm Kiếm AI thay thế ô search tĩnh */}
-      <AISearchBar />
+      {/* 🤖 Thanh Tìm Kiếm AI (gộp chung cả AI search và Live search) hoặc khoảng trống cho Admin */}
+      {user?.role === 'admin' ? (
+        <div style={{ flex: 1 }} />
+      ) : (
+        <AISearchBar />
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
         <span 
@@ -84,34 +128,39 @@ export default function Header() {
         {/* Notification Bell Component */}
         <NotificationBell />
         
-        {/* 🌎 Integrated Theme Switcher (Shared DS MFE) */}
-        <div style={{ display: 'flex', gap: '8px', marginRight: '10px' }}>
-          {['default', 'emerald', 'midnight'].map(themeName => (
-            <button 
-                key={themeName}
-                onClick={() => {
-                  try {
-                    // @ts-ignore
-                    const { applyTheme } = require('design_system/ThemeConfig');
-                    applyTheme(themeName);
-                  } catch (e) {
-                    console.warn("ThemeConfig service unavailable.");
-                  }
-                }}
-                title={`Switch to ${themeName} theme`}
-                aria-label={`Switch to ${themeName} theme`}
-                style={{ 
-                  width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  background: themeName === 'default' ? '#6366f1' : themeName === 'emerald' ? '#10b981' : '#a855f7',
-                  position: 'relative'
-                }}
-            >
-              <span style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}>
-                {themeName} theme
-              </span>
-            </button>
-          ))}
-        </div>
+        {/* ☀️/🌙 Dark/Light Theme Toggle */}
+        <button 
+          onClick={handleThemeToggle}
+          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '12px', 
+            cursor: 'pointer', 
+            border: '1px solid var(--border-light)', 
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            background: darkMode ? '#1e293b' : '#ffffff',
+            color: darkMode ? '#fbbf24' : '#475569',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.15rem',
+            transition: 'all 0.25s ease',
+            padding: 0,
+            marginRight: '5px'
+          }}
+          onMouseOver={e => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+          }}
+        >
+          {darkMode ? '🌙' : '☀️'}
+        </button>
 
         {/* Sync i18n Switcher */}
         <LanguageSwitcher />
@@ -127,9 +176,9 @@ export default function Header() {
           }}
         >
           <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-          {cartCount.value > 0 && (
+          {cartNum > 0 && (
             <div style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'var(--primary-color)', color: 'white', fontSize: '0.75rem', fontWeight: '900', padding: '1px 7px', borderRadius: '50%', border: '2px solid white', boxShadow: '0 2px 4px rgba(99, 102, 241, 0.4)' }}>
-              {cartCount.value}
+              {cartNum}
             </div>
           )}
         </button>

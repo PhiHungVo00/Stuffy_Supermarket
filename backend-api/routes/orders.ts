@@ -425,76 +425,142 @@ router.post('/', protect, async (req: any, res: Response) => {
     // Side-effect Redis (đã trừ phía trên) KHÔNG được đặt trong callback.
     const session = await mongoose.startSession();
     try {
-      await session.withTransaction(async () => {
-        // Reset trạng thái tích lũy để an toàn khi withTransaction retry
-        createdOrders = [];
+      try {
+        await session.withTransaction(async () => {
+          // Reset trạng thái tích lũy để an toàn khi withTransaction retry
+          createdOrders = [];
 
-        // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
-        if (coinsToRedeem > 0) {
-          await User.findByIdAndUpdate(
-            req.user._id,
-            { $inc: { coinsBalance: -coinsToRedeem } },
-            { session }
-          );
-          // Model.create([...], { session }) phải nhận MẢNG để truyền options session đúng cách
-          await CoinTransaction.create([{
-            user: req.user._id,
-            amount: -coinsToRedeem,
-            type: 'spend',
-            isCredited: true
-          }], { session });
-        }
-
-        // (2) Tạo các Order đã chuẩn bị + CoinTransaction earn (pending)
-        for (const prepared of preparedOrders) {
-          const order = new Order(prepared.orderData);
-          const savedOrder = await order.save({ session });
-          createdOrders.push(savedOrder);
-
-          // Create a pending coin earn transaction
-          if (prepared.coinsEarned > 0) {
+          // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
+          if (coinsToRedeem > 0) {
+            await User.findByIdAndUpdate(
+              req.user._id,
+              { $inc: { coinsBalance: -coinsToRedeem } },
+              { session }
+            );
+            // Model.create([...], { session }) phải nhận MẢNG để truyền options session đúng cách
             await CoinTransaction.create([{
               user: req.user._id,
-              amount: prepared.coinsEarned,
-              type: 'earn',
-              isCredited: false,
-              orderId: savedOrder._id
+              amount: -coinsToRedeem,
+              type: 'spend',
+              isCredited: true
             }], { session });
           }
-        }
 
-        // 6. Trừ tồn kho có điều kiện (atomically) — TRONG transaction (task 2.3)
-        // Trừ chỉ khi countInStock >= qty; nếu không đủ → throw InsufficientStockError
-        // để abort transaction (withTransaction tự hoàn tác mọi ghi MongoDB).
-        for (const item of orderItems) {
-          if (item.product) {
-            const qty = item.qty || 1;
-            const result = await Product.findOneAndUpdate(
-              { _id: item.product, countInStock: { $gte: qty } },
-              { $inc: { countInStock: -qty } },
-              { session, new: true }
-            );
-            if (!result) {
-              throw new InsufficientStockError(item.product);
+          // (2) Tạo các Order đã chuẩn bị + CoinTransaction earn (pending)
+          for (const prepared of preparedOrders) {
+            const order = new Order(prepared.orderData);
+            const savedOrder = await order.save({ session });
+            createdOrders.push(savedOrder);
+
+            // Create a pending coin earn transaction
+            if (prepared.coinsEarned > 0) {
+              await CoinTransaction.create([{
+                user: req.user._id,
+                amount: prepared.coinsEarned,
+                type: 'earn',
+                isCredited: false,
+                orderId: savedOrder._id
+              }], { session });
             }
           }
-        }
 
-        // 7. Update Seller Wallet pending escrow (task 2.4)
-        // Dùng findOneAndUpdate $inc với { session, upsert: true } thay cho đọc-sửa-ghi:
-        // - an toàn cạnh tranh (tăng nguyên tử trên server, không đọc-rồi-ghi)
-        // - upsert tạo ví nếu chưa tồn tại (thay nhánh new SellerWallet); các trường mặc định
-        //   (balance, currency) được Mongoose áp dụng nhờ setDefaultsOnInsert (mặc định bật).
-        // savedOrder.totalPrice đã được làm tròn 2 chữ số ở orderData.totalPrice nên $inc trực
-        // tiếp giữ hành vi tương đương (pendingEscrow tăng đúng tổng totalPrice).
-        for (const savedOrder of createdOrders) {
-          await SellerWallet.findOneAndUpdate(
-            { shopId: savedOrder.shop },
-            { $inc: { pendingEscrow: savedOrder.totalPrice } },
-            { session, new: true, upsert: true }
-          );
+          // 6. Trừ tồn kho có điều kiện (atomically) — TRONG transaction (task 2.3)
+          // Trừ chỉ khi countInStock >= qty; nếu không đủ → throw InsufficientStockError
+          // để abort transaction (withTransaction tự hoàn tác mọi ghi MongoDB).
+          for (const item of orderItems) {
+            if (item.product) {
+              const qty = item.qty || 1;
+              const result = await Product.findOneAndUpdate(
+                { _id: item.product, countInStock: { $gte: qty } },
+                { $inc: { countInStock: -qty } },
+                { session, new: true }
+              );
+              if (!result) {
+                throw new InsufficientStockError(item.product);
+              }
+            }
+          }
+
+          // 7. Update Seller Wallet pending escrow (task 2.4)
+          // Dùng findOneAndUpdate $inc với { session, upsert: true } thay cho đọc-sửa-ghi:
+          // - an toàn cạnh tranh (tăng nguyên tử trên server, không đọc-rồi-ghi)
+          // - upsert tạo ví nếu chưa tồn tại (thay nhánh new SellerWallet); các trường mặc định
+          //   (balance, currency) được Mongoose áp dụng nhờ setDefaultsOnInsert (mặc định bật).
+          // savedOrder.totalPrice đã được làm tròn 2 chữ số ở orderData.totalPrice nên $inc trực
+          // tiếp giữ hành vi tương đương (pendingEscrow tăng đúng tổng totalPrice).
+          for (const savedOrder of createdOrders) {
+            await SellerWallet.findOneAndUpdate(
+              { shopId: savedOrder.shop },
+              { $inc: { pendingEscrow: savedOrder.totalPrice } },
+              { session, new: true, upsert: true }
+            );
+          }
+        });
+      } catch (txError: any) {
+        if (isReplicaSetMissingError(txError) && process.env.NODE_ENV !== 'test') {
+          console.warn('[Orders] MongoDB transaction is not supported on standalone local db. Falling back to non-transactional execution.');
+          
+          createdOrders = [];
+
+          // (1) Trừ User.coinsBalance + ghi CoinTransaction spend (khi có redeem)
+          if (coinsToRedeem > 0) {
+            await User.findByIdAndUpdate(
+              req.user._id,
+              { $inc: { coinsBalance: -coinsToRedeem } }
+            );
+            await CoinTransaction.create([{
+              user: req.user._id,
+              amount: -coinsToRedeem,
+              type: 'spend',
+              isCredited: true
+            }]);
+          }
+
+          // (2) Tạo các Order đã chuẩn bị + CoinTransaction earn (pending)
+          for (const prepared of preparedOrders) {
+            const order = new Order(prepared.orderData);
+            const savedOrder = await order.save();
+            createdOrders.push(savedOrder);
+
+            // Create a pending coin earn transaction
+            if (prepared.coinsEarned > 0) {
+              await CoinTransaction.create([{
+                user: req.user._id,
+                amount: prepared.coinsEarned,
+                type: 'earn',
+                isCredited: false,
+                orderId: savedOrder._id
+              }]);
+            }
+          }
+
+          // 6. Trừ tồn kho có điều kiện (atomically)
+          for (const item of orderItems) {
+            if (item.product) {
+              const qty = item.qty || 1;
+              const result = await Product.findOneAndUpdate(
+                { _id: item.product, countInStock: { $gte: qty } },
+                { $inc: { countInStock: -qty } },
+                { new: true }
+              );
+              if (!result) {
+                throw new InsufficientStockError(item.product);
+              }
+            }
+          }
+
+          // 7. Update Seller Wallet pending escrow
+          for (const savedOrder of createdOrders) {
+            await SellerWallet.findOneAndUpdate(
+              { shopId: savedOrder.shop },
+              { $inc: { pendingEscrow: savedOrder.totalPrice } },
+              { new: true, upsert: true }
+            );
+          }
+        } else {
+          throw txError;
         }
-      });
+      }
 
       res.status(201).json(createdOrders[0]);
     } finally {

@@ -104,7 +104,7 @@ const Cart = () => {
       for (const [shopId, items] of Object.entries(shopGroupsForShipping)) {
         items.forEach(item => {
           apiItems.push({
-            product: item.id,
+            product: (item._id || item.id).split('_')[0],
             qty: item.quantity,
             price: item.price
           });
@@ -293,7 +293,7 @@ const Cart = () => {
         body: JSON.stringify({ 
           code, 
           orderTotal: shopSubtotal, 
-          items: shopItems.map(item => ({ product: item.id || item._id, qty: item.quantity, price: item.price }))
+          items: shopItems.map(item => ({ product: (item._id || item.id).split('_')[0], qty: item.quantity, price: item.price }))
         })
       });
       const data = await res.json();
@@ -354,7 +354,7 @@ const Cart = () => {
           qty: item.quantity,
           image: item.image,
           price: item.price,
-          product: item.id
+          product: (item._id || item.id).split('_')[0]
         });
       }
     });

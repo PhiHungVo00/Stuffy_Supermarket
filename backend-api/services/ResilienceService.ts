@@ -6,7 +6,7 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER
 const INTERNAL_SECRET = process.env.STUFFY_INTERNAL_SECRET || 'stuffy_secret_2026';
 const IMAGE_SERVICE_URL = process.env.IMAGE_SERVICE_URL || (isProduction 
     ? 'https://stuffy-image-service.onrender.com' 
-    : 'http://localhost:3009');
+    : 'http://localhost:3019');
 
 const generateInternalToken = () => {
     return jwt.sign({ 

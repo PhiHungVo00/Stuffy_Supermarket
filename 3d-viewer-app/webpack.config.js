@@ -1,4 +1,4 @@
-﻿const path = require("path");
+const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const deps = require("./package.json").dependencies;
@@ -32,6 +32,9 @@ module.exports = {
     ],
   },
   resolve: {
+    alias: {
+      "zustand$": path.resolve(__dirname, "src/zustand-wrapper.js"),
+    },
     extensions: [".js", ".jsx"],
     symlinks: false, // Helps resolving in monorepos
     modules: [

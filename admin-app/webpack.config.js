@@ -1,4 +1,4 @@
-﻿const HtmlWebpackPlugin = require("html-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
@@ -46,6 +46,9 @@ module.exports = {
     new ModuleFederationPlugin({
       name: "admin",
       filename: "remoteEntry.js",
+      remotes: {
+        store: "store@https://stuffy-store-app.onrender.com/remoteEntry.js",
+      },
       exposes: {
         "./App": "./src/App",
       },

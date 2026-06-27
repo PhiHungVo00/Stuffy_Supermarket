@@ -50,6 +50,10 @@ const Navbar = () => {
     }
   }, [user]);
 
+  if (user?.role === 'admin') {
+    return null;
+  }
+
   const navLinkStyle = (isActive, activeColor) => ({
     textDecoration: 'none',
     fontWeight: isActive ? '800' : '600',
@@ -68,20 +72,24 @@ const Navbar = () => {
   return (
     <nav style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '15px 10px 0 10px', borderBottom: '1px solid var(--border-light)', background: 'white', position: 'relative', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <NavLink to="/" end style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
-          {t('products')}
-        </NavLink>
-        <NavLink 
-          to="/cart" 
-          onMouseEnter={() => prefetchRemote('cart', REMOTE_MAP.cart)}
-          style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
-          {t('cart')}
-        </NavLink>
-        <NavLink 
-          to="/wishlist" 
-          style={({isActive}) => navLinkStyle(isActive, '#be185d')}>
-          {t('wishlist')}
-        </NavLink>
+        {user?.role !== 'admin' && (
+          <>
+            <NavLink to="/" end style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
+              {t('products')}
+            </NavLink>
+            <NavLink 
+              to="/cart" 
+              onMouseEnter={() => prefetchRemote('cart', REMOTE_MAP.cart)}
+              style={({isActive}) => navLinkStyle(isActive, 'var(--primary-dark)')}>
+              {t('cart')}
+            </NavLink>
+            <NavLink 
+              to="/wishlist" 
+              style={({isActive}) => navLinkStyle(isActive, '#be185d')}>
+              {t('wishlist')}
+            </NavLink>
+          </>
+        )}
         {(user?.role === 'admin' || user?.role === 'seller') && (
           <NavLink 
             to="/admin" 
@@ -90,11 +98,13 @@ const Navbar = () => {
             {user.role === 'seller' ? 'Kênh Người Bán' : t('admin')}
           </NavLink>
         )}
-        <NavLink 
-          to="/live" 
-          style={({isActive}) => navLinkStyle(isActive, '#c2410c')}>
-          🎥 Shopee Live
-        </NavLink>
+        {user?.role !== 'admin' && (
+          <NavLink 
+            to="/live" 
+            style={({isActive}) => navLinkStyle(isActive, '#c2410c')}>
+            🎥 Shopee Live
+          </NavLink>
+        )}
       </div>
 
       <div style={{ position: 'absolute', right: '30px', top: '15px' }}>
@@ -119,6 +129,31 @@ const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div>Loading...</div>;
   return user && (user.role === 'admin' || user.role === 'seller') ? children : <Navigate to="/login" />;
+};
+
+const Home = ({ t }) => {
+  const { user } = useAuth();
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return (
+    <>
+      <div style={{ background: 'var(--primary-dark)', color: 'white', padding: '30px 25px', borderRadius: 'var(--radius-lg)', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)', flexWrap: 'wrap', gap: '20px' }}>
+        <div style={{ minWidth: '250px', flex: 1 }}>
+          <span className="ds-badge" style={{ background: 'white', color: 'var(--primary-dark)', marginBottom: '12px', display: 'inline-block', fontSize: '0.8rem', letterSpacing: '0.5px', fontWeight: 'bold' }}>Live · {t('live_sync')}</span>
+          <h2 style={{ fontSize: '2.6rem', margin: '0 0 12px 0', fontWeight: '800', lineHeight: 1.15 }}>Stuffy<span style={{ color: '#ffd700' }}> Market</span></h2>
+          <p style={{ margin: 0, color: '#ffffff', fontSize: '1.05rem', maxWidth: '460px', lineHeight: 1.6 }}>{t('desc_banner')}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+          <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('mfe_modules')}</span>
+          <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('platform_tech')}</span>
+        </div>
+      </div>
+      <ProtectedModule moduleName="Flash Sale"><FlashSaleBanner /></ProtectedModule>
+      <div style={{ marginBottom: '40px' }}><ProtectedModule moduleName="Voucher Wallet"><VoucherWallet /></ProtectedModule></div>
+      <ProtectedModule moduleName="Products"><ProductList /></ProtectedModule>
+    </>
+  );
 };
 
 export default function App() {
@@ -146,24 +181,7 @@ export default function App() {
         
         <main style={{ padding: '30px 15px', flex: 1, maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           <Routes>
-            <Route path="/" element={
-              <>
-                <div style={{ background: 'var(--primary-dark)', color: 'white', padding: '30px 25px', borderRadius: 'var(--radius-lg)', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-hover)', flexWrap: 'wrap', gap: '20px' }}>
-                <div style={{ minWidth: '250px', flex: 1 }}>
-                  <span className="ds-badge" style={{ background: 'white', color: 'var(--primary-dark)', marginBottom: '12px', display: 'inline-block', fontSize: '0.8rem', letterSpacing: '0.5px', fontWeight: 'bold' }}>Live · {t('live_sync')}</span>
-                  <h2 style={{ fontSize: '2.6rem', margin: '0 0 12px 0', fontWeight: '800', lineHeight: 1.15 }}>Stuffy<span style={{ color: '#ffd700' }}> Market</span></h2>
-                  <p style={{ margin: 0, color: '#ffffff', fontSize: '1.05rem', maxWidth: '460px', lineHeight: 1.6 }}>{t('desc_banner')}</p>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-                  <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('mfe_modules')}</span>
-                  <span style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600' }}>{t('platform_tech')}</span>
-                </div>
-              </div>
-                <ProtectedModule moduleName="Flash Sale"><FlashSaleBanner /></ProtectedModule>
-                <div style={{ marginBottom: '40px' }}><ProtectedModule moduleName="Voucher Wallet"><VoucherWallet /></ProtectedModule></div>
-                <ProtectedModule moduleName="Products"><ProductList /></ProtectedModule>
-              </>
-            } />
+            <Route path="/" element={<Home t={t} />} />
             <Route path="/product/:id" element={<ProtectedModule moduleName="Product Detail"><ProductDetail /></ProtectedModule>} />
             <Route path="/cart" element={<ProtectedModule moduleName="Cart"><Cart /></ProtectedModule>} />
             <Route path="/wishlist" element={<ProtectedModule moduleName="Wishlist"><WishlistPage /></ProtectedModule>} />

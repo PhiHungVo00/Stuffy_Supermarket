@@ -10,11 +10,14 @@ import LiveConsole from "./components/LiveConsole";
 import FulfillmentManager from "./components/FulfillmentManager";
 import SellerWallet from "./components/SellerWallet";
 import ReviewManager from "./components/ReviewManager";
+// @ts-ignore
+import { useI18nStore } from "store/i18n";
 
 const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('onrender.com');
 const API_BASE = isProduction ? 'https://stuffy-backend-api.onrender.com' : 'http://localhost:5000';
 
 const App = () => {
+  const { t } = useI18nStore();
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
   const [activeTab, setActiveTab] = useState('products');
@@ -90,6 +93,7 @@ const App = () => {
         description: product.description, 
         category: product.category,
         weight: Number(product.weight || 200),
+        image: product.image,
         shop: shopId // Enforced by backend validation for sellers
       })
     })
@@ -98,7 +102,7 @@ const App = () => {
   };
 
   const updateProduct = (updated) => {
-    fetch(`${API_BASE}/api/products/${updated.id}`, {
+    fetch(`${API_BASE}/api/products/${updated._id || updated.id}`, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json', 
@@ -109,7 +113,8 @@ const App = () => {
         price: Number(updated.price), 
         description: updated.description, 
         category: updated.category,
-        weight: Number(updated.weight || 200)
+        weight: Number(updated.weight || 200),
+        image: updated.image
       })
     })
     .then(res => res.json())
@@ -136,16 +141,16 @@ const App = () => {
     <div>
       <div style={{ marginBottom: "30px", borderBottom: '1px solid var(--border-light)', paddingBottom: '20px' }}>
         <h1 style={{ color: "var(--text-main)", margin: "0 0 6px 0", fontSize: '2.2rem', fontWeight: '800' }}>
-          {userRole === 'seller' ? 'Seller Center Dashboard' : 'Admin BI Dashboard'}
+          {userRole === 'seller' ? t('admin_title_seller') : t('admin_title_admin')}
         </h1>
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.92rem' }}>
           {userRole === 'seller' 
-            ? `Manage inventory, track customer orders, and analyze performance for your store: ${shopName || 'Loading shop...'}.`
-            : "Analyze business trends, user behavioral funnels and real-time inventory performance across the entire platform."}
+            ? t('admin_desc_seller', { shopName: shopName || 'Loading shop...' })
+            : t('admin_desc_admin')}
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setActiveTab('products')} 
           style={{ 
@@ -158,7 +163,7 @@ const App = () => {
             cursor: 'pointer' 
           }}
         >
-          Products
+          {t('admin_tab_products')}
         </button>
         <button 
           onClick={() => setActiveTab('orders')} 
@@ -172,7 +177,7 @@ const App = () => {
             cursor: 'pointer' 
           }}
         >
-          Orders
+          {t('admin_tab_orders')}
         </button>
         <button 
           onClick={() => setActiveTab('chat')} 
@@ -186,7 +191,7 @@ const App = () => {
             cursor: 'pointer' 
           }}
         >
-          Customer Chat
+          {t('admin_tab_chat')}
         </button>
         {userRole === 'seller' && (
           <button 
@@ -201,7 +206,7 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Store Decorator
+            {t('admin_tab_decorate')}
           </button>
         )}
         {userRole === 'seller' && (
@@ -217,7 +222,7 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Marketing Center
+            {t('admin_tab_promotions')}
           </button>
         )}
         {userRole === 'seller' && (
@@ -233,7 +238,7 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Live Stream
+            {t('admin_tab_live')}
           </button>
         )}
         {userRole === 'seller' && (
@@ -249,10 +254,10 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Shipments
+            {t('admin_tab_shipments')}
           </button>
         )}
-                {userRole === 'seller' && (
+        {userRole === 'seller' && (
           <button 
             onClick={() => setActiveTab('reviews')} 
             style={{ 
@@ -265,10 +270,10 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Reviews
+            {t('admin_tab_reviews')}
           </button>
         )}
-{userRole === 'seller' && (
+        {userRole === 'seller' && (
           <button 
             onClick={() => setActiveTab('wallet')} 
             style={{ 
@@ -281,7 +286,7 @@ const App = () => {
               cursor: 'pointer' 
             }}
           >
-            Seller Wallet
+            {t('admin_tab_wallet')}
           </button>
         )}
       </div>
@@ -291,7 +296,7 @@ const App = () => {
           <Dashboard products={products} />
           <div style={{ marginBottom: '30px' }}>
             <h2 style={{ color: "var(--text-main)", fontSize: '1.5rem', fontWeight: '800' }}>
-              {userRole === 'seller' ? 'My Shop Inventory' : 'Product Inventory'}
+              {userRole === 'seller' ? t('admin_heading_my_inventory') : t('admin_heading_all_inventory')}
             </h2>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 350px) 1fr', gap: '30px', alignItems: 'start' }}>

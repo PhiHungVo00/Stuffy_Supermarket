@@ -8,11 +8,22 @@ import { signal, effect, computed } from "@preact/signals-react";
  * anywhere in the Micro-frontend tree.
  */
 
-// 1. Core State Signals
-export const cartCount = signal(0);
-export const currentUser = signal<any>(null);
-export const activeTenant = signal('default_store');
-export const isDarkMode = signal(false);
+// 1. Core State Signals (Attached to window to ensure cross-MFE singleton instances)
+const getGlobalSignal = (key: string, initialValue: any) => {
+  if (typeof window !== 'undefined') {
+    const win = window as any;
+    if (!win[key]) {
+      win[key] = signal(initialValue);
+    }
+    return win[key];
+  }
+  return signal(initialValue);
+};
+
+export const cartCount = getGlobalSignal('__stuffy_cartCount', 0);
+export const currentUser = getGlobalSignal('__stuffy_currentUser', null);
+export const activeTenant = getGlobalSignal('__stuffy_activeTenant', 'default_store');
+export const isDarkMode = getGlobalSignal('__stuffy_isDarkMode', false);
 
 // 2. Computed Values (Reactive logic)
 export const isAdmin = computed(() => currentUser.value?.role === 'admin');

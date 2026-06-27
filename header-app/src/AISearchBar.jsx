@@ -57,14 +57,25 @@ export default function AISearchBar() {
   const lastCallRef = useRef(0);
   const cooldownTimer = useRef(null);
 
+  const debounceRef = useRef(null);
+
   useEffect(() => {
     const handleReset = () => { setQuery(''); setAiResult(null); };
     window.addEventListener('AI_SEARCH_RESET', handleReset);
     return () => {
       window.removeEventListener('AI_SEARCH_RESET', handleReset);
       if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  const handleQueryChange = (val) => {
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('PRODUCT_SEARCH', { detail: { keyword: val } }));
+    }, 300);
+  };
 
   const startCooldown = (seconds) => {
     setCooldown(seconds);
@@ -125,6 +136,7 @@ export default function AISearchBar() {
     setQuery('');
     setAiResult(null);
     window.dispatchEvent(new CustomEvent('AI_SEARCH_RESULT', { detail: { matches: null } }));
+    window.dispatchEvent(new CustomEvent('PRODUCT_SEARCH', { detail: { keyword: '' } }));
     inputRef.current?.focus();
   };
 
@@ -166,7 +178,7 @@ export default function AISearchBar() {
           ref={inputRef}
           type="text"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={e => handleQueryChange(e.target.value)}
           onKeyDown={handleSearch}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}

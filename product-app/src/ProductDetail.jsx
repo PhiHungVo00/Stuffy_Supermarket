@@ -129,7 +129,7 @@ export default function ProductDetail() {
           // 2. 🚀 Fetch RECOMMENDATIONS from REAL-TIME Microservice (Collaborative Filtering)
           try {
              const isProduction = window.location.hostname.includes('onrender.com');
-             const recomBaseUrl = isProduction ? 'https://stuffy-recom.onrender.com' : 'http://localhost:3010';
+             const recomBaseUrl = isProduction ? 'https://stuffy-recom.onrender.com' : 'http://localhost:3020';
              const recomRes = await fetch(`${recomBaseUrl}/api/recommendations/${id}`);
              const recomData = await recomRes.json();
              if (recomData.suggested && recomData.suggested.length > 0) {

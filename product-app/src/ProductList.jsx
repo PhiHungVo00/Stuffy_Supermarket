@@ -8,8 +8,6 @@ import { io } from "socket.io-client";
 // @ts-ignore
 import { useI18nStore } from "store/i18n";
 import { getOptimizedImage } from "./utils/image";
-// @ts-ignore
-import { incrementCart } from "store/signals";
 
 // Lazy-load the 3D viewer (2MB+) — only fetched when user clicks "View in 3D"
 const Viewer3D = React.lazy(() => import("viewer/Viewer"));
@@ -283,7 +281,6 @@ export default function ProductList() {
                       </span>
                       <Button onClick={() => {
                         addToCart(p);
-                        incrementCart();
                         window.dispatchEvent(new CustomEvent('STUFFY_TOAST', { 
                           detail: { message: t('added_to_cart_toast', { name: p.name }), type: 'success' } 
                         }));

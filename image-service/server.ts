@@ -89,7 +89,7 @@ app.get('/optimize', interServiceAuth, async (req: Request, res: Response) => {
   }
 });
 
-const PORT = process.env.PORT || 3009;
+const PORT = process.env.PORT || 3019;
 app.listen(Number(PORT), () => {
   console.log(`[Image Optimization Service] Running at http://localhost:${PORT}`);
   console.log(`[Cache] Directory: ${CACHE_DIR}`);
